@@ -1,10 +1,20 @@
 import { GoogleGenAI } from "@google/genai";
 
-const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-const ai = new GoogleGenAI({ apiKey });
+/**
+ * API 키가 없을 때는 Gemini 클라이언트를 생성하지 않음.
+ * 배포/프리렌더 시 "API key must be set" 에러를 막기 위해,
+ * 임시로 API 키 없으면 실행되지 않게 처리되어 있음.
+ */
+function getGeminiClient() {
+  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+  if (!apiKey) return null;
+  return new GoogleGenAI({ apiKey });
+}
 
 export const getDailyInsight = async (scripture: string): Promise<string> => {
-  if (!apiKey) {
+  const ai = getGeminiClient();
+  if (!ai) {
+    // API 키 미설정 시 임시로 Gemini 호출 없이 안내 문구만 반환
     return "API Key가 설정되지 않았습니다. (개발 모드)";
   }
 
@@ -24,7 +34,9 @@ export const getDailyInsight = async (scripture: string): Promise<string> => {
 };
 
 export const generatePrayerFromReflection = async (reflection: string): Promise<string> => {
-  if (!apiKey) {
+  const ai = getGeminiClient();
+  if (!ai) {
+    // API 키 미설정 시 임시로 Gemini 호출 없이 기본 기도문 반환
     return "주님, 저의 마음을 받아주소서. (API Key 미설정)";
   }
 
