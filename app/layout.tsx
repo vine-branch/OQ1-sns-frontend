@@ -1,3 +1,4 @@
+import { Agentation } from "agentation";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { BottomNav, Sidebar } from "./components/Navigation";
@@ -35,6 +36,7 @@ export default function RootLayout({
           </main>
           <BottomNav />
         </div>
+        {process.env.NODE_ENV === "development" && <Agentation />}
       </body>
     </html>
   );
