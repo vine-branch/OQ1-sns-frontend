@@ -1,14 +1,12 @@
-'use client';
+import React, { useState } from 'react';
+import { PlusSquare, Heart } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import DailyWordCard from '../components/DailyWordCard';
+import FeedItem from '../components/FeedItem';
+import { MOCK_POSTS } from '../constants';
+import { FeedFilter } from '../types';
 
-import { Heart, PlusSquare } from 'lucide-react';
-import Link from 'next/link';
-import { useState } from 'react';
-import DailyWordCard from './components/DailyWordCard';
-import FeedItem from './components/FeedItem';
-import { MOCK_POSTS } from './constants';
-import { FeedFilter } from './types';
-
-export default function HomePage() {
+const HomePage = () => {
   const [filter, setFilter] = useState<FeedFilter>(FeedFilter.ALL);
 
   // Simple filter logic simulation
@@ -24,7 +22,7 @@ export default function HomePage() {
         <h1 className="text-xl font-bold italic font-serif tracking-tight">OQ1</h1>
         <div className="flex items-center gap-4">
              <div className="text-xs font-bold bg-gray-100 px-2 py-1 rounded-md text-gray-600">D-12</div>
-             <Link href="/upload">
+             <Link to="/upload">
                 <PlusSquare size={24} className="text-black" strokeWidth={1.5} />
              </Link>
              <Heart size={24} className="text-black" strokeWidth={1.5} />
@@ -65,4 +63,6 @@ export default function HomePage() {
       </div>
     </div>
   );
-}
+};
+
+export default HomePage;
