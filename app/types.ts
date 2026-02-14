@@ -1,3 +1,15 @@
+/** ERD oq_users 테이블 기준 회원가입/회원 정보 */
+export interface OqUser {
+  id?: number;
+  user_name: string;
+  guk_no: number;
+  birth_date: string; // YYYY-MM-DD
+  leader_name: string;
+  enneagram_type: string;
+  reg_date?: string;
+  update_date?: string;
+}
+
 export interface User {
   id: string;
   name: string;
