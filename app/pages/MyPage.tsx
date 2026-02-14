@@ -1,7 +1,8 @@
 import React from 'react';
-import { Settings, Award, Flame, Calendar, MessageSquare, Menu, PlusSquare } from 'lucide-react';
-import Heatmap from '../components/Heatmap';
-import { CURRENT_USER, BADGES } from '../constants';
+import { Award, Calendar, MessageSquare, Menu, PlusSquare } from 'lucide-react';
+import ActivityCalendar from '../components/ActivityCalendar';
+import FeedItem from '../components/FeedItem';
+import { CURRENT_USER, BADGES, MOCK_MY_POSTS } from '../constants';
 
 const MyPage = () => {
   const expPercentage = Math.min((CURRENT_USER.currentExp / CURRENT_USER.maxExp) * 100, 100);
@@ -83,14 +84,24 @@ const MyPage = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
             
-            {/* Left Column */}
+            {/* Left Column: 캘린더(작게) + 내 큐티 묵상 피드 */}
             <div className="md:col-span-2 space-y-6">
-                <div className="bg-white p-5 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Calendar className="text-gray-900" size={18} />
+                <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Calendar className="text-gray-900" size={16} />
                         <h2 className="font-bold text-gray-900 text-sm">내 활동 기록</h2>
                     </div>
-                    <Heatmap />
+                    <ActivityCalendar />
+                </div>
+
+                {/* 인스타처럼: 과거 큐티 묵상을 홈과 같은 카드로 아래로 쭉 */}
+                <div>
+                    <h2 className="font-bold text-gray-900 text-sm mb-4 px-1">내 큐티 묵상</h2>
+                    <div className="space-y-0">
+                        {MOCK_MY_POSTS.map((post) => (
+                            <FeedItem key={post.id} post={post} />
+                        ))}
+                    </div>
                 </div>
 
                 <div className="bg-white p-5 rounded-lg border border-gray-200">

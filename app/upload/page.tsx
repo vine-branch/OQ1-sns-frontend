@@ -215,7 +215,7 @@ export default function UploadPage() {
 
             {/* Anonymous Toggle */}
             <div className="flex items-center justify-between py-3.5 px-2 -mx-2">
-                <span className="text-base text-gray-900">익명 게시</span>
+                <span className="text-base text-gray-900">나만 보기</span>
                 <button 
                     onClick={() => setIsAnonymous(!isAnonymous)}
                     className={`w-11 h-6 rounded-full transition-colors relative ${isAnonymous ? 'bg-black' : 'bg-gray-300'}`}

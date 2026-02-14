@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OQ1",
-  description: "OQ1 - Share your quiet time",
+  title: "OQ1: 오늘 큐티 완료",
+  description: "매일 QT를 나누고 사람을 연결하는 플랫폼",
 };
 
 export default function RootLayout({

@@ -51,12 +51,12 @@ export const Sidebar = () => {
       </nav>
 
       <div className="mt-auto pt-6 border-t border-gray-100">
-        <div className="bg-gradient-to-tr from-yellow-100 via-orange-100 to-pink-100 rounded-xl p-4 border border-orange-200">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Current Challenge</p>
-          <p className="text-base font-bold text-gray-900 mt-1">사순절 40일 완주</p>
+        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200/80">
+          <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">Current Challenge</p>
+          <p className="text-sm font-semibold text-gray-900 mt-1">사순절 40일 완주</p>
           <div className="mt-2 flex justify-between items-end">
-            <span className="text-xl font-bold text-insta-gradient">D-12</span>
-            <span className="text-xs text-gray-500">화이팅!</span>
+            <span className="text-lg font-bold text-gray-900">D-12</span>
+            <span className="text-xs text-gray-400">화이팅!</span>
           </div>
         </div>
       </div>

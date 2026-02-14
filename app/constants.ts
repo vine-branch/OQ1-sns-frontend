@@ -64,13 +64,68 @@ export const MOCK_POSTS: Post[] = [
   },
   {
     id: 'p3',
-    user: CURRENT_USER, // Self post
+    user: CURRENT_USER,
     content: '아침 일찍 일어나 말씀을 보니 하루가 다릅니다! 사망의 음침한 골짜기 같았던 어제였지만, 오늘은 주님의 지팡이가 느껴집니다.',
     scriptureRef: '시편 23:4',
     amenCount: 12,
     commentCount: 2,
     timestamp: '방금 전',
     tags: ['#새벽큐티', '#승리']
+  }
+];
+
+/** 마이페이지용: 내가 과거에 작성한 큐티 묵상 목록 (인스타그램 피드처럼 아래로 쭉) */
+export const MOCK_MY_POSTS: Post[] = [
+  {
+    id: 'my1',
+    user: CURRENT_USER,
+    content: '아침 일찍 일어나 말씀을 보니 하루가 다릅니다! 사망의 음침한 골짜기 같았던 어제였지만, 오늘은 주님의 지팡이가 느껴집니다.',
+    scriptureRef: '시편 23:4',
+    amenCount: 12,
+    commentCount: 2,
+    timestamp: '방금 전',
+    tags: ['#새벽큐티', '#승리']
+  },
+  {
+    id: 'my2',
+    user: CURRENT_USER,
+    content: '하나님이 세상을 이처럼 사랑하사... 오늘 나도 그 사랑 안에 머물기를. 주변 사람들에게 작은 사랑을 나누는 하루가 되길.',
+    scriptureRef: '요한복음 3:16',
+    imageUrl: 'https://picsum.photos/800/500',
+    amenCount: 8,
+    commentCount: 3,
+    timestamp: '1일 전',
+    tags: ['#사랑', '#구원']
+  },
+  {
+    id: 'my3',
+    user: CURRENT_USER,
+    content: '여호와는 나의 목자시니 부족함이 없으리로다. 오늘 하루도 주님 인도하심을 믿고 걸었습니다.',
+    scriptureRef: '시편 23:1',
+    amenCount: 5,
+    commentCount: 1,
+    timestamp: '2일 전',
+    tags: ['#평안', '#인도']
+  },
+  {
+    id: 'my4',
+    user: CURRENT_USER,
+    content: '내게 능력 주시는 자 안에서 내가 모든 것을 할 수 있느니라. 어제보다 한 걸음 더 내딛는 하루.',
+    scriptureRef: '빌립보 4:13',
+    amenCount: 15,
+    commentCount: 4,
+    timestamp: '3일 전',
+    tags: ['#능력', '#희망']
+  },
+  {
+    id: 'my5',
+    user: CURRENT_USER,
+    content: '마음을 다하여 여호와를 신뢰하고... 오늘도 주님 뜻을 먼저 구하는 하루가 되길.',
+    scriptureRef: '잠언 3:5-6',
+    amenCount: 7,
+    commentCount: 0,
+    timestamp: '5일 전',
+    tags: ['#신뢰', '#인도']
   }
 ];
 

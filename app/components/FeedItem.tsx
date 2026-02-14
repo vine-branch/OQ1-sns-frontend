@@ -1,6 +1,6 @@
 'use client';
 
-import { Bookmark, Heart, MessageCircle, MoreHorizontal, Send } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, Send } from 'lucide-react';
 import React, { useState } from 'react';
 import { Post } from '../types';
 
@@ -60,8 +60,26 @@ const FeedItem: React.FC<FeedItemProps> = ({ post }) => {
         </div>
       )}
 
-      {/* Action Bar */}
       <div className="px-3 py-3">
+        {/* Content */}
+        <div className="mb-2">
+            <span className="font-semibold text-sm mr-2">{post.isAnonymous ? '익명' : post.user.name}</span>
+            <span className="text-sm text-gray-800 whitespace-pre-wrap">{post.content}</span>
+        </div>
+        
+        {/* Scripture Reference Badge (styled as tag) */}
+        <div className="mb-2">
+            <span className="text-xs font-medium text-gray-500 mr-2">📖 {post.scriptureRef}</span>
+        </div>
+
+        {/* Tags */}
+        <div className="flex flex-wrap gap-1 mb-2">
+            {post.tags.map(tag => (
+                <span key={tag} className="text-sm text-[#00376b] cursor-pointer hover:underline">{tag}</span>
+            ))}
+        </div>
+
+        {/* Action Bar - 태그 밑 */}
         <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-4">
                 <button 
@@ -77,32 +95,11 @@ const FeedItem: React.FC<FeedItemProps> = ({ post }) => {
                     <Send size={26} strokeWidth={1.5} />
                 </button>
             </div>
-            <button className="text-black hover:text-gray-600">
-                <Bookmark size={26} strokeWidth={1.5} />
-            </button>
         </div>
 
-        {/* Likes Count */}
+        {/* Likes Count - 태그 밑 */}
         <div className="mb-2">
             <span className="text-sm font-semibold text-gray-900">아멘 {count}개</span>
-        </div>
-
-        {/* Content */}
-        <div className="mb-2">
-            <span className="font-semibold text-sm mr-2">{post.isAnonymous ? '익명' : post.user.name}</span>
-            <span className="text-sm text-gray-800 whitespace-pre-wrap">{post.content}</span>
-        </div>
-        
-        {/* Scripture Reference Badge (styled as tag) */}
-        <div className="mb-2">
-            <span className="text-xs font-medium text-gray-500 mr-2">📖 {post.scriptureRef}</span>
-        </div>
-
-        {/* Tags */}
-        <div className="flex flex-wrap gap-1">
-            {post.tags.map(tag => (
-                <span key={tag} className="text-sm text-[#00376b] cursor-pointer hover:underline">{tag}</span>
-            ))}
         </div>
         
         {post.commentCount > 0 && (

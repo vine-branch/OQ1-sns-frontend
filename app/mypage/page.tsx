@@ -1,8 +1,9 @@
 'use client';
 
 import { Award, Calendar, Menu, MessageSquare, PlusSquare } from 'lucide-react';
-import Heatmap from '../components/Heatmap';
-import { BADGES, CURRENT_USER } from '../constants';
+import ActivityCalendar from '../components/ActivityCalendar';
+import FeedItem from '../components/FeedItem';
+import { BADGES, CURRENT_USER, MOCK_MY_POSTS } from '../constants';
 
 export default function MyPage() {
   const expPercentage = Math.min((CURRENT_USER.currentExp / CURRENT_USER.maxExp) * 100, 100);
@@ -84,16 +85,8 @@ export default function MyPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
             
-            {/* Left Column */}
+            {/* Left Column: 뱃지 → 내 활동 기록 → 내 큐티 묵상 피드 */}
             <div className="md:col-span-2 space-y-6">
-                <div className="bg-white p-5 rounded-lg border border-gray-200">
-                    <div className="flex items-center gap-2 mb-4">
-                        <Calendar className="text-gray-900" size={18} />
-                        <h2 className="font-bold text-gray-900 text-sm">내 활동 기록</h2>
-                    </div>
-                    <Heatmap />
-                </div>
-
                 <div className="bg-white p-5 rounded-lg border border-gray-200">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
@@ -112,6 +105,24 @@ export default function MyPage() {
                                     {badge.name}
                                 </span>
                             </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Calendar className="text-gray-900" size={18} />
+                        <h2 className="font-bold text-gray-900 text-sm">내 활동 기록</h2>
+                    </div>
+                    <ActivityCalendar />
+                </div>
+
+                {/* 내 큐티 묵상 - 홈과 같은 카드로 아래로 쭉 */}
+                <div>
+                    <h2 className="font-bold text-gray-900 text-sm mb-4 px-1">내 큐티 묵상</h2>
+                    <div className="space-y-0">
+                        {MOCK_MY_POSTS.map((post) => (
+                            <FeedItem key={post.id} post={post} />
                         ))}
                     </div>
                 </div>
