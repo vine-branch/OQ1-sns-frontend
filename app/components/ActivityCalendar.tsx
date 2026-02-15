@@ -1,36 +1,24 @@
-'use client';
+"use client";
 
-import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Trophy } from 'lucide-react';
-import { CURRENT_USER } from '../constants';
+import { Calendar, ChevronLeft, ChevronRight, Trophy } from "lucide-react";
+import { useMemo, useState } from "react";
 
-const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-// 서버/클라이언트 동일 결과를 위해 결정적(시드 기반) 데이터 사용. 레퍼런스 색상: 무활동=회색, 활동=연한핑크→진한핑크
-const SEED = 12345;
-const deterministicIntensity = (year: number, month: number, day: number): number => {
-  const n = (year * 31 + month) * 31 + day + SEED;
-  const h = (n * 2654435761) >>> 0;
-  if ((h % 100) < 40) return 0;
-  return (h % 3) + 1;
-};
+interface ActivityCalendarProps {
+  completedDates?: string[]; // 'YYYY-MM-DD' format
+  streak?: number;
+}
 
-const getCompletedDaysForMonth = (year: number, month: number): Map<string, number> => {
-  const map = new Map<string, number>();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  for (let d = 1; d <= daysInMonth; d++) {
-    const intensity = deterministicIntensity(year, month, d);
-    if (intensity > 0) map.set(`${year}-${month}-${d}`, intensity);
-  }
-  return map;
-};
-
-const ActivityCalendar = () => {
+const ActivityCalendar = ({
+  completedDates = [],
+  streak = 0,
+}: ActivityCalendarProps) => {
   const [viewDate, setViewDate] = useState(() => new Date());
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
 
-  const activityMap = useMemo(() => getCompletedDaysForMonth(year, month), [year, month]);
+  const activitySet = useMemo(() => new Set(completedDates), [completedDates]);
 
   const firstDay = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0);
@@ -52,21 +40,30 @@ const ActivityCalendar = () => {
     weeks.push(week);
   }
 
-  const getIntensity = (day: number) => activityMap.get(`${year}-${month}-${day}`) ?? 0;
+  const formatDate = (y: number, m: number, d: number) => {
+    const mm = m + 1 < 10 ? `0${m + 1}` : `${m + 1}`;
+    const dd = d < 10 ? `0${d}` : `${d}`;
+    return `${y}-${mm}-${dd}`;
+  };
 
-  const goPrev = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1));
-  const goNext = () => setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1));
+  const getIntensity = (day: number) => {
+    const dateStr = formatDate(year, month, day);
+    return activitySet.has(dateStr) ? 1 : 0;
+  };
+
+  const goPrev = () =>
+    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1));
+  const goNext = () =>
+    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1));
   const title = `${year}년 ${month + 1}월`;
 
-  const totalDaysThisMonth = useMemo(
-    () => Array.from(activityMap.values()).filter((v) => v > 0).length,
-    [activityMap]
-  );
+  let totalDaysThisMonth = 0;
+  for (let d = 1; d <= daysInMonth; d++) {
+    if (activitySet.has(formatDate(year, month, d))) totalDaysThisMonth++;
+  }
 
-  const completionPercent = useMemo(
-    () => (daysInMonth > 0 ? Math.round((totalDaysThisMonth / daysInMonth) * 100) : 0),
-    [totalDaysThisMonth, daysInMonth]
-  );
+  const completionPercent =
+    daysInMonth > 0 ? Math.round((totalDaysThisMonth / daysInMonth) * 100) : 0;
 
   const radius = 14;
   const circumference = 2 * Math.PI * radius;
@@ -84,7 +81,9 @@ const ActivityCalendar = () => {
         >
           <ChevronLeft size={16} strokeWidth={2} />
         </button>
-        <span className="text-xs font-bold text-gray-900 tabular-nums">{title}</span>
+        <span className="text-xs font-bold text-gray-900 tabular-nums">
+          {title}
+        </span>
         <button
           type="button"
           onClick={goNext}
@@ -103,7 +102,10 @@ const ActivityCalendar = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-y-1 gap-x-0" style={{ gridAutoRows: 'minmax(20px, 1fr)' }}>
+      <div
+        className="grid grid-cols-7 gap-y-1 gap-x-0"
+        style={{ gridAutoRows: "minmax(20px, 1fr)" }}
+      >
         {weeks.flat().map((day, idx) => {
           if (day === null) {
             return <div key={`empty-${idx}`} className="min-w-0" />;
@@ -116,18 +118,19 @@ const ActivityCalendar = () => {
 
           const bgClass =
             intensity === 0
-              ? 'bg-gray-100 text-gray-400'
+              ? "bg-gray-100 text-gray-400"
               : intensity === 1
-                ? 'bg-pink-200 text-pink-900'
-                : intensity === 2
-                  ? 'bg-pink-400 text-white'
-                  : 'bg-pink-600 text-white';
+                ? "bg-pink-200 text-pink-900" // Simple 1-level intensity for now
+                : "bg-pink-400 text-white";
 
           return (
-            <div key={`${year}-${month}-${day}`} className="flex items-center justify-center min-w-0 p-0.5">
+            <div
+              key={`${year}-${month}-${day}`}
+              className="flex items-center justify-center min-w-0 p-0.5"
+            >
               <div
-                className={`aspect-square w-full max-w-[28px] rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${bgClass} ${isToday ? 'ring-2 ring-pink-500 ring-offset-1 ring-offset-white' : ''}`}
-                title={new Date(year, month, day).toLocaleDateString('ko-KR')}
+                className={`aspect-square w-full max-w-7 rounded-full flex items-center justify-center text-[10px] font-semibold transition-colors ${bgClass} ${isToday ? "ring-2 ring-pink-500 ring-offset-1 ring-offset-white" : ""}`}
+                title={formatDate(year, month, day)}
               >
                 {day}
               </div>
@@ -141,12 +144,14 @@ const ActivityCalendar = () => {
         <div className="flex flex-col items-center text-center">
           <Trophy className="text-amber-500 shrink-0 mb-0.5" size={14} />
           <span className="text-[9px] text-gray-500">현재 연속</span>
-          <span className="text-xs font-bold text-gray-900">{CURRENT_USER.streak}일</span>
+          <span className="text-xs font-bold text-gray-900">{streak}일</span>
         </div>
         <div className="flex flex-col items-center text-center">
           <Calendar className="text-pink-500 shrink-0 mb-0.5" size={14} />
           <span className="text-[9px] text-gray-500">이번 달</span>
-          <span className="text-xs font-bold text-gray-900">{totalDaysThisMonth}회</span>
+          <span className="text-xs font-bold text-gray-900">
+            {totalDaysThisMonth}회
+          </span>
         </div>
         <div className="flex flex-col items-center justify-center">
           <div className="relative w-12 h-12 flex items-center justify-center">
@@ -170,11 +175,13 @@ const ActivityCalendar = () => {
                 strokeDasharray={`${circumference} ${circumference}`}
                 strokeDashoffset={circumference - strokeDash}
                 style={{
-                  transition: 'stroke-dashoffset 0.6s ease-out',
+                  transition: "stroke-dashoffset 0.6s ease-out",
                 }}
               />
             </svg>
-            <span className="absolute text-xs font-bold text-gray-800 tabular-nums">{completionPercent}%</span>
+            <span className="absolute text-xs font-bold text-gray-800 tabular-nums">
+              {completionPercent}%
+            </span>
           </div>
         </div>
       </div>

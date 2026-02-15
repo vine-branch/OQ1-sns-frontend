@@ -14,12 +14,13 @@ export interface User {
   id: string;
   name: string;
   avatar: string;
-  type: 'Morning' | 'Night' | 'Lunch' | 'Anytime';
+  type: "Morning" | "Night" | "Lunch" | "Anytime";
   streak: number;
   group: string;
-  level: number;      // Added
+  level: number; // Added
   currentExp: number; // Added
-  maxExp: number;     // Added
+  maxExp: number; // Added
+  hasDoneToday?: boolean;
 }
 
 export interface Post {
@@ -31,6 +32,7 @@ export interface Post {
   isAnonymous?: boolean;
   amenCount: number;
   commentCount: number;
+  isLiked: boolean;
   timestamp: string;
   tags: string[];
 }
@@ -60,7 +62,7 @@ export interface Comment {
 }
 
 export enum FeedFilter {
-  ALL = 'ALL',
-  MY_TYPE = 'MY_TYPE',
-  FOLLOWING = 'FOLLOWING'
+  ALL = "ALL",
+  MY_TYPE = "MY_TYPE",
+  // FOLLOWING = 'FOLLOWING'
 }

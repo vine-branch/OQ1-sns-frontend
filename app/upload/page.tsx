@@ -1,24 +1,143 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { ArrowLeft, Home, Image as ImageIcon, Sparkles, Trophy, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import React, { useRef, useState } from 'react';
-import { CURRENT_USER, TODAY_WORD } from '../constants';
-import { generatePrayerFromReflection } from '../services/geminiService';
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { createClient } from "@/lib/supabase/client";
+import { sanitizeText } from "@/lib/utils";
+import { User } from "@supabase/supabase-js";
+import {
+  ChevronDown,
+  ChevronUp,
+  Home,
+  Image as ImageIcon,
+  Sparkles,
+  Trophy,
+  X,
+} from "lucide-react";
+import Image from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import React, {
+  Suspense,
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { generatePrayerFromReflection } from "../services/geminiService";
+import { createPost, State } from "./actions";
 
-export default function UploadPage() {
+// Type Definitions
+interface DailyQt {
+  id: string;
+  qt_date: string;
+  bible_book: string;
+  chapter: number;
+  verse_from: number;
+  verse_to: number;
+  content?: string;
+}
+
+const initialState: State = { message: undefined, errors: {} };
+
+function UploadForm() {
   const router = useRouter();
-  const [content, setContent] = useState('');
+  const searchParams = useSearchParams();
+  const editPostId = searchParams.get("id");
+
+  // Server Action State (React 19)
+  const [state, formAction, isPending] = useActionState(
+    createPost,
+    initialState,
+  );
+
+  // Data States (Typed)
+  const [user, setUser] = useState<User | null>(null);
+  const [dailyQt, setDailyQt] = useState<DailyQt | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // UI States
+  const [content, setContent] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
+  const [tagInput, setTagInput] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [isGeneratingPrayer, setIsGeneratingPrayer] = useState(false);
   const [showReward, setShowReward] = useState(false);
+  const [isQuoteExpanded, setIsQuoteExpanded] = useState(false);
 
   // Hidden file input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Check Action Success
+    if (state.success) {
+      const timer = setTimeout(() => setShowReward(true), 0);
+      return () => clearTimeout(timer);
+    } else if (state.message) {
+      alert(state.message);
+    }
+  }, [state]);
+
+  useEffect(() => {
+    const init = async () => {
+      const supabase = createClient();
+
+      // 1. Auth check
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+      setUser(user);
+
+      // 2. Fetch Data (Edit Mode or Today's QT)
+      if (editPostId) {
+        const { data: postData } = await supabase
+          .from("oq_user_qt_answers")
+          .select("*, daily_qt:daily_qt_id(*)")
+          .eq("id", editPostId)
+          .single();
+
+        if (postData) {
+          setContent(postData.meditation);
+          setIsAnonymous(!postData.is_public);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setDailyQt(postData.daily_qt as any as DailyQt);
+        }
+      } else {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, "0");
+        const day = String(today.getDate()).padStart(2, "0");
+        const todayStr = `${year}-${month}-${day}`;
+
+        let { data: qtData } = await supabase
+          .from("oq_daily_qt")
+          .select("*")
+          .eq("qt_date", todayStr)
+          .single();
+
+        if (!qtData) {
+          const { data: latestQt } = await supabase
+            .from("oq_daily_qt")
+            .select("*")
+            .order("qt_date", { ascending: false })
+            .limit(1)
+            .single();
+          qtData = latestQt;
+        }
+
+        if (qtData) {
+          setDailyQt(qtData as DailyQt);
+        }
+      }
+
+      setIsLoading(false);
+    };
+    init();
+  }, [router, editPostId]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -29,17 +148,22 @@ export default function UploadPage() {
   };
 
   const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && tagInput.trim()) {
+    if (e.nativeEvent.isComposing) return; // IME composing check
+
+    if (e.key === "Enter" && tagInput.trim()) {
       e.preventDefault();
-      if (!tags.includes(tagInput.trim())) {
-        setTags([...tags, tagInput.trim()]);
+      const cleanTag = sanitizeText(tagInput);
+      if (cleanTag && cleanTag.length <= 20 && !tags.includes(cleanTag)) {
+        setTags([...tags, cleanTag]);
+      } else if (cleanTag.length > 20) {
+        alert("태그는 20자 이내로 입력해 주세요.");
       }
-      setTagInput('');
+      setTagInput("");
     }
   };
 
   const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
+    setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
   const handleGeneratePrayer = async () => {
@@ -49,183 +173,323 @@ export default function UploadPage() {
     }
     setIsGeneratingPrayer(true);
     const prayer = await generatePrayerFromReflection(content);
-    setContent(prev => prev + "\n\n[오늘의 기도]\n" + prayer);
+    setContent(content + "\n\n[오늘의 기도]\n" + prayer);
     setIsGeneratingPrayer(false);
   };
 
-  const handleSubmit = () => {
-    if (!content) return;
-    setShowReward(true);
+  const handleCloseReward = () => {
+    router.push("/");
   };
 
-  const handleCloseReward = () => {
-    router.push('/');
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
+
+  const userAvatar =
+    user?.user_metadata?.avatar_url ||
+    "https://k.kakaocdn.net/dn/dpk9l1/btqmGhA2lKL/Oz0wDuJn1YV2DIn92f6DVK/img_640x640.jpg";
 
   return (
-    <div className="bg-white min-h-screen pb-20 md:pb-8 relative">
-      
+    <form
+      action={formAction}
+      className="bg-white min-h-screen pb-20 md:pb-8 relative"
+    >
+      {/* Hidden Inputs for Form Data */}
+      <input type="hidden" name="postId" value={editPostId || ""} />
+      <input type="hidden" name="qtId" value={dailyQt?.id || ""} />
+      <input type="hidden" name="isAnonymous" value={String(isAnonymous)} />
+      <input type="hidden" name="tags" value={JSON.stringify(tags)} />
+      {/* Content is handled by textarea name="content" directly */}
+
       {/* Reward Overlay */}
       {showReward && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-6">
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center transform scale-100 animate-bounce-in relative overflow-hidden">
-             
-             {/* Background Gradient Blob */}
-             <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-200 rounded-full blur-3xl opacity-50"></div>
-             <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-yellow-200 rounded-full blur-3xl opacity-50"></div>
+            {/* Background Gradient Blob */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-200 rounded-full blur-3xl opacity-50"></div>
+            <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-yellow-200 rounded-full blur-3xl opacity-50"></div>
 
-             <div className="relative z-10">
-                <div className="w-20 h-20 bg-gradient-to-tr from-yellow-300 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-5 text-white shadow-lg">
-                    <Trophy size={40} strokeWidth={1.5} />
-                </div>
-                
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">인증 완료!</h2>
-                <p className="text-gray-500 mb-8 text-sm">오늘도 말씀을 통해 승리하셨군요!</p>
-                
-                <div className="space-y-3 mb-8">
-                    <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
-                        <span className="text-sm font-semibold text-gray-600">획득 경험치</span>
-                        <span className="text-sm font-bold text-blue-500">+50 EXP</span>
-                    </div>
-                    <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
-                        <span className="text-sm font-semibold text-gray-600">연속 묵상</span>
-                        <div className="flex items-center gap-1">
-                             <span className="text-sm font-bold text-orange-500">{CURRENT_USER.streak + 1}일째</span>
-                             <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">HOT</span>
-                        </div>
-                    </div>
-                </div>
+            <div className="relative z-10">
+              <div className="w-20 h-20 bg-gradient-to-tr from-yellow-300 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-5 text-white shadow-lg">
+                <Trophy size={40} strokeWidth={1.5} />
+              </div>
 
-                <button 
-                    onClick={handleCloseReward}
-                    className="w-full bg-blue-500 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-600 transition-colors shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
-                >
-                    <Home size={18} />
-                    <span>홈으로 돌아가기</span>
-                </button>
-             </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                인증 완료!
+              </h2>
+              <p className="text-gray-500 mb-8 text-sm">
+                오늘도 말씀을 통해 승리하셨군요!
+              </p>
+
+              <div className="space-y-3 mb-8">
+                <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
+                  <span className="text-sm font-semibold text-gray-600">
+                    획득 경험치
+                  </span>
+                  <span className="text-sm font-bold text-blue-500">
+                    +50 EXP
+                  </span>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
+                  <span className="text-sm font-semibold text-gray-600">
+                    연속 묵상
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm font-bold text-orange-500">
+                      1일째
+                    </span>
+                    <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">
+                      HOT
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCloseReward}
+                className="w-full bg-blue-500 text-white py-3.5 rounded-xl font-semibold hover:bg-blue-600 transition-colors shadow-lg shadow-blue-200 flex items-center justify-center gap-2"
+              >
+                <Home size={18} />
+                <span>홈으로 돌아가기</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 px-4 h-14 flex items-center justify-between">
-        <button onClick={() => router.back()} className="p-1 -ml-1 hover:opacity-70 transition-opacity">
-          <ArrowLeft size={26} className="text-gray-900" strokeWidth={1.5} />
-        </button>
-        <h1 className="text-base font-bold text-gray-900">새 게시물</h1>
-        <button 
-          onClick={handleSubmit}
-          className={`text-sm font-semibold transition-colors ${content ? 'text-blue-500 hover:text-blue-700' : 'text-blue-200 cursor-default'}`}
+      {/* Header - Instagram Style */}
+      <div className="sticky top-0 z-30 bg-white border-b border-gray-100 flex items-center justify-between px-4 h-12">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="text-base font-normal text-gray-900 hover:opacity-70"
         >
-          공유
+          취소
+        </button>
+        <h1 className="text-base font-bold text-gray-900">
+          {editPostId ? "큐티 수정하기" : "큐티 작성하기"}
+        </h1>
+        <button
+          type="submit"
+          disabled={isPending || content.length < 10 || !dailyQt}
+          className={`text-base font-bold transition-colors ${
+            content.length >= 10 && dailyQt && !isPending
+              ? "text-blue-500 hover:text-blue-700 cursor-pointer"
+              : "text-blue-200 cursor-default"
+          }`}
+        >
+          {isPending ? "처리 중..." : "저장"}
         </button>
       </div>
 
-      <div className="max-w-2xl mx-auto p-4 space-y-6">
+      <div className="max-w-2xl mx-auto">
         {/* Today's Word Quote */}
-        <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300">
-           <h2 className="font-bold text-gray-900 text-sm mb-1">{TODAY_WORD.reference}</h2>
-           <p className="text-sm text-gray-600 line-clamp-2 italic">{`"${TODAY_WORD.text}"`}</p>
-        </div>
-
-        {/* Text Editor */}
-        <div className="flex gap-3">
-           <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 relative">
-               <Image src={CURRENT_USER.avatar} alt="Me" fill className="object-cover" unoptimized />
-           </div>
-           <div className="flex-1">
-              <textarea 
-                className="w-full h-40 p-0 text-base placeholder:text-gray-400 border-none focus:ring-0 resize-none leading-relaxed bg-transparent"
-                placeholder="문구를 입력하세요..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-              />
-           </div>
-        </div>
-        
-        {/* Image Preview Area */}
-        {image && (
-            <div className="relative rounded-lg overflow-hidden bg-gray-100 border border-gray-200 aspect-video">
-                <Image src={image} alt="Preview" fill className="object-cover" unoptimized />
-                <button 
-                    onClick={() => setImage(null)}
-                    className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-black/80 transition-colors"
-                >
-                    <X size={14} />
-                </button>
+        {dailyQt && (
+          <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mx-4 mt-4 mb-2">
+            <h2 className="font-bold text-gray-900 text-sm mb-2">
+              {dailyQt.bible_book} {dailyQt.chapter}:{dailyQt.verse_from}-
+              {dailyQt.verse_to}
+            </h2>
+            <div
+              className={`relative ${
+                !isQuoteExpanded ? "max-h-20 overflow-hidden" : ""
+              } transition-all duration-300`}
+            >
+              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line italic">
+                {dailyQt.content || "묵상 말씀을 읽어보세요."}
+              </p>
+              {!isQuoteExpanded && (
+                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-gray-50 to-transparent" />
+              )}
             </div>
+            <button
+              onClick={() => setIsQuoteExpanded(!isQuoteExpanded)}
+              className="w-full flex justify-center items-center gap-1 mt-2 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+              type="button"
+            >
+              {isQuoteExpanded ? (
+                <>
+                  접기 <ChevronUp size={14} />
+                </>
+              ) : (
+                <>
+                  더 보기 <ChevronDown size={14} />
+                </>
+              )}
+            </button>
+          </div>
         )}
 
-        {/* AI Helper Button */}
-        <div className="flex justify-end">
-            <button 
+        {/* Content Area: Image (Left) + Text (Right) Split View */}
+        <div className="flex p-4 gap-4 border-b border-gray-100">
+          {/* Left: Thumbnail */}
+          <div className="shrink-0 pt-1">
+            {image ? (
+              <div className="relative w-16 h-16 md:w-20 md:h-20 bg-gray-100 rounded overflow-hidden border border-gray-200">
+                <Image
+                  src={image}
+                  alt="Selected"
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+                <button
+                  type="button"
+                  onClick={() => setImage(null)}
+                  className="absolute top-0.5 right-0.5 bg-black/60 text-white p-0.5 rounded-full hover:bg-black/80"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-200 overflow-hidden relative border border-gray-100">
+                <Image
+                  src={userAvatar}
+                  alt="Me"
+                  fill
+                  className="object-cover"
+                  unoptimized
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Right: Text Editor */}
+          <div className="flex-1">
+            <Textarea
+              name="content" // Server Action binds to this name
+              className="w-full h-32 md:h-40 p-0 text-base placeholder:text-gray-400 border-none resize-none leading-relaxed bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none focus-visible:outline-none"
+              placeholder="묵상 내용을 10자 이상 입력하세요..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              maxLength={2200}
+            />
+            {state.errors?.content && (
+              <p className="text-red-500 text-xs mt-1">
+                {state.errors.content[0]}
+              </p>
+            )}
+
+            {/* AI Generation Button */}
+            <div className="flex justify-end mt-2">
+              <button
                 onClick={handleGeneratePrayer}
                 disabled={isGeneratingPrayer}
-                className="flex items-center gap-2 text-xs font-semibold text-purple-600 bg-purple-50 px-3 py-1.5 rounded-full hover:bg-purple-100 transition-colors"
-            >
+                className="text-xs font-semibold text-purple-600 flex items-center gap-1 bg-purple-50 px-2.5 py-1.5 rounded-md hover:bg-purple-100 transition-colors"
+                type="button"
+              >
                 {isGeneratingPrayer ? (
-                    <div className="w-3 h-3 border-2 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+                  <Sparkles size={12} className="animate-spin" />
                 ) : (
-                    <Sparkles size={14} />
+                  <Sparkles size={12} />
                 )}
-                <span>AI 기도문 생성</span>
-            </button>
+                AI 기도문
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Tools Section */}
-        <div className="border-t border-gray-100 pt-2">
-            
-            {/* Action Items */}
-            <div 
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-between py-3.5 border-b border-gray-100 cursor-pointer hover:bg-gray-50 px-2 -mx-2 rounded transition-colors"
+        {/* Tools List */}
+        <div className="divide-y divide-gray-100 border-b border-gray-100">
+          {/* Action: Add Photo */}
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center justify-between py-3.5 px-4 cursor-pointer active:bg-gray-50 transition-colors"
+          >
+            <span className="text-base text-gray-900">사진 추가</span>
+            <div className="flex items-center gap-2">
+              {image && (
+                <span className="text-xs text-blue-500 font-medium">
+                  1장 선택됨
+                </span>
+              )}
+              <ImageIcon size={20} className="text-gray-400" />
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleImageUpload}
+              name="image" // Prepare for server upload
+            />
+          </div>
+
+          {/* Action: Tags */}
+          <div className="py-3.5 px-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-base text-gray-900">태그</span>
+              {tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 justify-end max-w-[70%]">
+                  {tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded font-medium flex items-center gap-1 cursor-pointer"
+                      onClick={() => removeTag(tag)}
+                    >
+                      #{tag} <X size={8} />
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Input
+              type="text"
+              placeholder="태그 입력... (Enter)"
+              className="w-full text-sm bg-transparent border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-gray-400 shadow-none h-auto"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleAddTag}
+              // Prevent form submission on Enter
+              onKeyPress={(e) => {
+                if (e.key === "Enter") e.preventDefault();
+              }}
+            />
+          </div>
+
+          {/* Action: Anonymous Toggle */}
+          <div className="flex items-center justify-between py-3.5 px-4">
+            <div className="flex flex-col">
+              <span className="text-base text-gray-900">나만 보기</span>
+              <span className="text-xs text-gray-400 mt-0.5">
+                피드에 공개되지 않습니다.
+              </span>
+            </div>
+            <button
+              onClick={() => setIsAnonymous(!isAnonymous)}
+              className={`w-11 h-6 rounded-full transition-colors relative ${
+                isAnonymous ? "bg-black" : "bg-gray-200"
+              }`}
+              type="button"
             >
-                <div className="flex items-center gap-3">
-                    <ImageIcon size={22} className="text-gray-900" strokeWidth={1.5} />
-                    <span className="text-base text-gray-900">사진 추가</span>
-                </div>
-                <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    className="hidden" 
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                />
-            </div>
-
-            {/* Tags Input */}
-            <div className="py-3.5 border-b border-gray-100">
-                <div className="flex flex-wrap gap-2 mb-2">
-                    {tags.map(tag => (
-                        <span key={tag} className="px-2 py-1 bg-blue-50 text-blue-600 text-xs rounded font-medium flex items-center gap-1">
-                            #{tag}
-                            <button onClick={() => removeTag(tag)} className="hover:text-blue-800"><X size={12} /></button>
-                        </span>
-                    ))}
-                </div>
-                <input 
-                    type="text" 
-                    placeholder="# 태그 입력..." 
-                    className="w-full text-base bg-transparent border-none p-0 focus:ring-0 placeholder:text-gray-400"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={handleAddTag}
-                />
-            </div>
-
-            {/* Anonymous Toggle */}
-            <div className="flex items-center justify-between py-3.5 px-2 -mx-2">
-                <span className="text-base text-gray-900">나만 보기</span>
-                <button 
-                    onClick={() => setIsAnonymous(!isAnonymous)}
-                    className={`w-11 h-6 rounded-full transition-colors relative ${isAnonymous ? 'bg-black' : 'bg-gray-300'}`}
-                >
-                    <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow-sm ${isAnonymous ? 'left-[22px]' : 'left-0.5'}`}></div>
-                </button>
-            </div>
+              <div
+                className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow-sm ${
+                  isAnonymous ? "left-[22px]" : "left-0.5"
+                }`}
+              ></div>
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </form>
+  );
+}
+
+export default function UploadPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-white flex items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
+      <UploadForm />
+    </Suspense>
   );
 }

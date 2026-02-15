@@ -1,10 +1,11 @@
+import { sanitizeText } from "@/lib/utils";
 import { z } from "zod";
 
 export const signupSchema = z.object({
   user_name: z
     .string()
     .min(1, "이름을 입력해 주세요.")
-    .transform((s: string) => s.trim())
+    .transform((s: string) => sanitizeText(s))
     .refine((s) => /^[가-힣\s]+$/.test(s), "이름은 한글만 입력할 수 있습니다.")
     .refine((s) => s.length <= 10, "이름은 10자 이내로 입력해 주세요."),
   guk_no: z.coerce
@@ -28,7 +29,7 @@ export const signupSchema = z.object({
   leader_name: z
     .string()
     .min(1, "리더 이름을 입력해 주세요.")
-    .transform((s: string) => s.trim())
+    .transform((s: string) => sanitizeText(s))
     .refine(
       (s) => /^[가-힣\s]+$/.test(s),
       "리더 이름은 한글만 입력할 수 있습니다.",
