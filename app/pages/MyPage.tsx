@@ -1,4 +1,5 @@
 import React from 'react';
+import Image from 'next/image';
 import { Award, Calendar, MessageSquare, Menu, PlusSquare } from 'lucide-react';
 import ActivityCalendar from '../components/ActivityCalendar';
 import FeedItem from '../components/FeedItem';
@@ -23,11 +24,13 @@ const MyPage = () => {
                 {/* Avatar with Gradient Ring */}
                 <div className="relative flex-shrink-0">
                     <div className="w-[88px] h-[88px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-[2px]">
-                         <div className="w-full h-full rounded-full bg-white p-[2px]">
-                            <img 
+                         <div className="w-full h-full rounded-full bg-white p-[2px] relative overflow-hidden">
+                            <Image 
                                 src={CURRENT_USER.avatar} 
                                 alt="Profile" 
-                                className="w-full h-full rounded-full object-cover" 
+                                fill
+                                className="object-cover" 
+                                unoptimized
                             />
                          </div>
                     </div>
@@ -138,7 +141,7 @@ const MyPage = () => {
                         <div className="bg-white/10 backdrop-blur-md rounded-lg p-3 mb-2 flex items-center gap-3 border border-white/10">
                             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm">🙏</div>
                             <div>
-                                <p className="text-xs font-semibold">이믿음님이 '아멘'을 보냈어요.</p>
+                                <p className="text-xs font-semibold">{`이믿음님이 '아멘'을 보냈어요.`}</p>
                                 <span className="text-[10px] opacity-70">10분 전</span>
                             </div>
                         </div>

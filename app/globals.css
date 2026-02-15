@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 @import "tailwindcss";
+@import "react-day-picker/style.css";
 
 :root {
   --background: #fafafa;
@@ -51,4 +52,41 @@ body {
 /* Custom background color */
 .bg-fafafa {
   background-color: #fafafa;
+}
+
+/* Calendar: OQ1 폼 디자인과 일치 (gray 톤, rounded-md) */
+.rdp-root {
+  --rdp-accent-color: #171717;
+  --rdp-accent-background-color: #f5f5f5;
+  --rdp-day_button-border-radius: 6px;
+  --rdp-today-color: #404040;
+  --rdp-selected-border: 2px solid #171717;
+  font-size: 0.875rem;
+}
+.rdp-root .rdp-day_button:hover:not([disabled]):not(.rdp-selected) {
+  background-color: #f5f5f5;
+}
+.rdp-root .rdp-selected .rdp-day_button {
+  background-color: #171717;
+  color: white;
+}
+.rdp-root .rdp-caption_label {
+  font-weight: 500;
+  color: #171717;
+}
+.rdp-root .rdp-weekday {
+  color: #737373;
+  font-size: 0.75rem;
+}
+.rdp-root .rdp-button_previous,
+.rdp-root .rdp-button_next {
+  border-radius: 6px;
+  border: 1px solid #e5e5e5;
+  background: #fafafa;
+  color: #525252;
+}
+.rdp-root .rdp-button_previous:hover:not([disabled]),
+.rdp-root .rdp-button_next:hover:not([disabled]) {
+  background: #f5f5f5;
+  color: #171717;
 }

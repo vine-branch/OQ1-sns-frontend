@@ -54,7 +54,7 @@ const DailyWordCard = () => {
 
         <div className="mt-5 p-4 bg-gray-50 rounded-lg border-l-4 border-gray-300 italic">
           <p className="text-gray-600 font-medium text-sm">
-            "{TODAY_WORD.keyVerse}"
+            {`"${TODAY_WORD.keyVerse}"`}
           </p>
         </div>
 

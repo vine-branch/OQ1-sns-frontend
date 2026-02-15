@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { ArrowLeft, Image as ImageIcon, X, Sparkles, Trophy, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { TODAY_WORD, CURRENT_USER } from '../constants';
@@ -123,13 +124,13 @@ const UploadPage = () => {
         {/* Today's Word Quote */}
         <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300">
            <h2 className="font-bold text-gray-900 text-sm mb-1">{TODAY_WORD.reference}</h2>
-           <p className="text-sm text-gray-600 line-clamp-2 italic">"{TODAY_WORD.text}"</p>
+           <p className="text-sm text-gray-600 line-clamp-2 italic">{`"${TODAY_WORD.text}"`}</p>
         </div>
 
         {/* Text Editor */}
         <div className="flex gap-3">
-           <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0">
-               <img src={CURRENT_USER.avatar} alt="Me" className="w-full h-full object-cover" />
+           <div className="w-8 h-8 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 relative">
+               <Image src={CURRENT_USER.avatar} alt="Me" fill className="object-cover" unoptimized />
            </div>
            <div className="flex-1">
               <textarea 
@@ -143,8 +144,8 @@ const UploadPage = () => {
         
         {/* Image Preview Area */}
         {image && (
-            <div className="relative rounded-lg overflow-hidden bg-gray-100 border border-gray-200">
-                <img src={image} alt="Preview" className="w-full max-h-96 object-cover" />
+            <div className="relative rounded-lg overflow-hidden bg-gray-100 border border-gray-200 aspect-video">
+                <Image src={image} alt="Preview" fill className="object-cover" unoptimized />
                 <button 
                     onClick={() => setImage(null)}
                     className="absolute top-2 right-2 bg-black/60 text-white p-1.5 rounded-full hover:bg-black/80 transition-colors"

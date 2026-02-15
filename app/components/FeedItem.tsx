@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { Heart, MessageCircle, MoreHorizontal, Send } from 'lucide-react';
 import React, { useState } from 'react';
 import { Post } from '../types';
@@ -32,7 +33,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post }) => {
              </div>
           ) : (
              <div className="p-[2px] rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500">
-               <img src={post.user.avatar} alt={post.user.name} className="w-8 h-8 rounded-full border-2 border-white object-cover" />
+               <Image src={post.user.avatar} alt={post.user.name} width={32} height={32} className="rounded-full border-2 border-white object-cover" unoptimized />
              </div>
           )}
           
@@ -55,8 +56,8 @@ const FeedItem: React.FC<FeedItemProps> = ({ post }) => {
 
       {/* Image Attachment */}
       {post.imageUrl && (
-        <div className="w-full bg-gray-100">
-          <img src={post.imageUrl} alt="QT Note" className="w-full h-auto object-cover" />
+        <div className="w-full bg-gray-100 relative aspect-video">
+          <Image src={post.imageUrl} alt="QT Note" fill className="object-cover" unoptimized />
         </div>
       )}
 
