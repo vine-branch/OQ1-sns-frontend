@@ -4,7 +4,7 @@ import { useState } from "react";
 import DailyWordCard from "../components/DailyWordCard";
 import FeedItem from "../components/FeedItem";
 import { MobileHeader } from "../components/MobileHeader";
-import { MOCK_POSTS } from "../constants";
+import { MOCK_POSTS, TODAY_WORD } from "../constants";
 import { FeedFilter } from "../types";
 
 export default function HomePage() {
@@ -22,7 +22,7 @@ export default function HomePage() {
       <MobileHeader />
 
       <div className="md:px-4 mt-2 md:mt-0">
-        <DailyWordCard />
+        <DailyWordCard demoData={TODAY_WORD} />
 
         {/* Filter Tabs - Pill Styles */}
         <div className="px-4 md:px-0 flex items-center gap-2 mb-4 overflow-x-auto no-scrollbar pb-2">

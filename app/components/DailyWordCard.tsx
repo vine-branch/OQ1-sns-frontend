@@ -3,10 +3,15 @@
 import { createClient } from "@/lib/supabase/client";
 import { BookOpen, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { TODAY_WORD } from "../constants";
 import { getDailyInsight } from "../services/geminiService";
+import type { DailyWord } from "../types";
 
-const DailyWordCard = () => {
+interface Props {
+  /** demo 페이지 전용: 실제 데이터가 없을 때 표시할 목데이터 */
+  demoData?: DailyWord;
+}
+
+const DailyWordCard = ({ demoData }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const [showExpand, setShowExpand] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
@@ -57,39 +62,43 @@ const DailyWordCard = () => {
       }
     }, 0);
     return () => clearTimeout(timer);
-  }, [dailyQt]);
+  }, [dailyQt, demoData]);
 
   const handleGetInsight = async () => {
-    const wordText = dailyQt?.content || TODAY_WORD.text;
-    if (insight) return;
+    const content = dailyQt?.content ?? demoData?.text;
+    if (!content || insight) return;
     setLoading(true);
-    const result = await getDailyInsight(wordText);
+    const result = await getDailyInsight(content);
     setInsight(result);
     setLoading(false);
   };
 
-  const displayDate = dailyQt
-    ? new Date(dailyQt.qt_date).toLocaleDateString("ko-KR", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : TODAY_WORD.date;
-  const displayReference = dailyQt
-    ? `${dailyQt.bible_book} ${dailyQt.chapter}:${dailyQt.verse_from}-${dailyQt.verse_to}`
-    : TODAY_WORD.reference;
-  const displayTitle = dailyQt ? "오늘의 말씀" : TODAY_WORD.title;
-  const displayText = dailyQt ? dailyQt.content : TODAY_WORD.text;
-  const displayKeyVerse = dailyQt
-    ? "오늘의 묵상 본문을 읽고 은혜를 나누어보세요."
-    : TODAY_WORD.keyVerse;
+  const data = dailyQt
+    ? {
+        date: new Date(dailyQt.qt_date).toLocaleDateString("ko-KR", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        reference: `${dailyQt.bible_book} ${dailyQt.chapter}:${dailyQt.verse_from}-${dailyQt.verse_to}`,
+        content: dailyQt.content,
+        keyVerse: "오늘의 묵상 본문을 읽고 은혜를 나누어보세요.",
+      }
+    : demoData
+      ? {
+          date: demoData.date,
+          reference: demoData.reference,
+          content: demoData.text,
+          keyVerse: demoData.keyVerse,
+        }
+      : null;
 
   return (
     <div className="bg-white md:rounded-lg border-b md:border border-gray-200 mb-6 overflow-hidden">
       {/* Instagram Story-like Header */}
-      <div className="bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500 px-5 py-4 flex justify-between items-center text-white">
+      <div className="bg-linear-to-r from-pink-500 via-red-500 to-yellow-500 px-5 py-4 flex justify-between items-center text-white">
         <div className="flex-1 min-w-0">
-          {qtLoading ? (
+          {qtLoading || !data ? (
             <>
               <div className="h-3 w-28 bg-white/30 rounded animate-pulse mb-2" />
               <div className="h-5 w-36 bg-white/30 rounded animate-pulse" />
@@ -97,9 +106,9 @@ const DailyWordCard = () => {
           ) : (
             <>
               <h2 className="text-xs font-semibold opacity-90 uppercase tracking-wider">
-                {displayDate}
+                {data.date}
               </h2>
-              <h1 className="text-lg font-bold mt-0.5">{displayReference}</h1>
+              <h1 className="text-lg font-bold mt-0.5">{data.reference}</h1>
             </>
           )}
         </div>
@@ -107,7 +116,7 @@ const DailyWordCard = () => {
       </div>
 
       <div className="p-5">
-        <h3 className="text-lg font-bold text-gray-900 mb-3">{displayTitle}</h3>
+        <h3 className="text-lg font-bold text-gray-900 mb-3">오늘의 말씀</h3>
 
         {qtLoading ? (
           <div className="animate-pulse space-y-2 mb-3">
@@ -116,7 +125,7 @@ const DailyWordCard = () => {
             <div className="h-4 w-5/6 bg-gray-200 rounded"></div>
             <div className="h-4 w-2/3 bg-gray-200 rounded mt-2"></div>
           </div>
-        ) : (
+        ) : data ? (
           <>
             <div
               className={`relative ${showExpand && !expanded ? "max-h-24 overflow-hidden" : ""} transition-all duration-300`}
@@ -125,10 +134,10 @@ const DailyWordCard = () => {
                 ref={contentRef}
                 className="text-gray-800 leading-relaxed whitespace-pre-line text-sm md:text-base font-light"
               >
-                {displayText}
+                {data.content}
               </p>
               {showExpand && !expanded && (
-                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-white to-transparent" />
               )}
             </div>
 
@@ -149,7 +158,7 @@ const DailyWordCard = () => {
               </button>
             )}
           </>
-        )}
+        ) : null}
 
         <div className="mt-5 p-4 bg-gray-50 rounded-lg border-l-4 border-gray-300 italic">
           {qtLoading ? (
@@ -157,50 +166,52 @@ const DailyWordCard = () => {
               <div className="h-3.5 w-full bg-gray-200 rounded" />
               <div className="h-3.5 w-4/5 bg-gray-200 rounded" />
             </div>
-          ) : (
+          ) : data ? (
             <p className="text-gray-600 font-medium text-sm">
-              {`"${displayKeyVerse}"`}
+              &ldquo;{data.keyVerse}&rdquo;
             </p>
-          )}
+          ) : null}
         </div>
 
         {/* AI Insight Section */}
-        <div className="mt-5">
-          {!insight && !loading && (
-            <button
-              onClick={handleGetInsight}
-              className="w-full py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
-            >
-              <Sparkles size={16} className="text-yellow-500" />
-              <span>AI 묵상 질문 보기</span>
-            </button>
-          )}
+        {data && (
+          <div className="mt-5">
+            {!insight && !loading && (
+              <button
+                onClick={handleGetInsight}
+                className="w-full py-2.5 rounded-lg border border-gray-200 text-sm font-semibold text-gray-700 flex justify-center items-center gap-2 hover:bg-gray-50 transition-colors"
+              >
+                <Sparkles size={16} className="text-yellow-500" />
+                <span>AI 묵상 질문 보기</span>
+              </button>
+            )}
 
-          {loading && (
-            <div className="w-full py-4 flex justify-center items-center text-gray-400 gap-2">
-              <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-gray-600"></div>
-              <span className="text-sm">생각하는 중...</span>
-            </div>
-          )}
+            {loading && (
+              <div className="w-full py-4 flex justify-center items-center text-gray-400 gap-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-gray-600"></div>
+                <span className="text-sm">생각하는 중...</span>
+              </div>
+            )}
 
-          {insight && (
-            <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg animate-fade-in border border-purple-100">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 text-purple-600">
-                  <Sparkles size={16} fill="currentColor" />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900 mb-1">
-                    묵상 포인트
-                  </h4>
-                  <p className="text-sm text-gray-700 leading-relaxed">
-                    {insight}
-                  </p>
+            {insight && (
+              <div className="bg-linear-to-r from-purple-50 to-pink-50 p-4 rounded-lg animate-fade-in border border-purple-100">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 text-purple-600">
+                    <Sparkles size={16} fill="currentColor" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-900 mb-1">
+                      묵상 포인트
+                    </h4>
+                    <p className="text-sm text-gray-700 leading-relaxed">
+                      {insight}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
