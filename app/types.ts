@@ -35,6 +35,7 @@ export interface Post {
   isLiked: boolean;
   timestamp: string;
   tags: string[];
+  likedUsers?: { userId: string; userName: string; avatarUrl?: string }[];
 }
 
 export interface DailyWord {

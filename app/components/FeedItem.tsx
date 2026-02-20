@@ -2,11 +2,13 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeTime, sanitizeText } from "@/lib/utils";
-import { Heart, Lock, MessageCircle, MoreHorizontal, Send } from "lucide-react";
+import { ResponsiveModal, ResponsiveModalBody } from "@/components/ui/responsive-modal";
+import { AnimatePresence, motion } from "framer-motion";
+import { ChevronDown, ChevronUp, Heart, Lock, MessageCircle, MoreHorizontal, Send } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Post } from "../types";
 import UserAvatar from "./UserAvatar";
 
@@ -37,6 +39,20 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
   const [commentText, setCommentText] = useState("");
   const [loadingComments, setLoadingComments] = useState(false);
   const router = useRouter();
+
+  const [isContentExpanded, setIsContentExpanded] = useState(false);
+  const [showMoreButton, setShowMoreButton] = useState(false);
+  const [showLikers, setShowLikers] = useState(false);
+  const contentRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      if (contentRef.current.scrollHeight > 60 || post.content.length > 200) {
+        const timer = setTimeout(() => setShowMoreButton(true), 0);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [post.content]);
 
   const displayName = post.isAnonymous ? "익명의 지체" : post.user.name;
 
@@ -265,9 +281,38 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
       <div className="px-3 py-2">
         {/* Content (Caption) */}
         <div className="mb-2 leading-snug">
-          <span className="text-[13px] text-gray-900 whitespace-pre-wrap">
-            {post.content}
-          </span>
+          <AnimatePresence initial={false}>
+            <motion.div
+              initial={false}
+              animate={{
+                height: isContentExpanded || !showMoreButton ? "auto" : "3.6em",
+              }}
+              className="overflow-hidden relative"
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+            >
+              <span
+                ref={contentRef}
+                className="text-[13px] text-gray-900 whitespace-pre-wrap block"
+              >
+                {post.content}
+              </span>
+              {showMoreButton && !isContentExpanded && (
+                <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-white to-transparent" />
+              )}
+            </motion.div>
+          </AnimatePresence>
+          {showMoreButton && (
+            <button
+              onClick={() => setIsContentExpanded(!isContentExpanded)}
+              className="w-full flex justify-center items-center gap-1 mt-3 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              {isContentExpanded ? (
+                <>접기 <ChevronUp size={14} /></>
+              ) : (
+                <>더 보기 <ChevronDown size={14} /></>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Tags */}
@@ -323,10 +368,71 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
 
         {/* Likes Count Row */}
         <div className="mb-2">
-          <span className="text-[13px] font-bold text-gray-900 cursor-pointer">
-            아멘 {count}개
-          </span>
+          {count > 0 && (
+            <button
+              className="text-[13px] font-bold text-gray-900 text-left"
+              onClick={() => setShowLikers(true)}
+            >
+              {(() => {
+                const others = liked
+                  ? (post.likedUsers || []).filter((u) => u.userId !== currentUserId)
+                  : post.likedUsers || [];
+                if (liked) {
+                  if (count === 1) return "내가 아멘했습니다";
+                  if (count === 2)
+                    return others[0]
+                      ? `${others[0].userName}님과 내가 아멘했습니다`
+                      : `나 외 1명이 아멘했습니다`;
+                  return others[0]
+                    ? `${others[0].userName}님 외 ${count - 2}명과 내가 아멘했습니다`
+                    : `나 외 ${count - 1}명이 아멘했습니다`;
+                } else {
+                  if (!others[0]) return `아멘 ${count}개`;
+                  if (count === 1) return `${others[0].userName}님이 아멘했습니다`;
+                  if (count === 2)
+                    return others[1]
+                      ? `${others[0].userName}님과 ${others[1].userName}님이 아멘했습니다`
+                      : `${others[0].userName}님 외 1명이 아멘했습니다`;
+                  return `${others[0].userName}님 외 ${count - 1}명이 아멘했습니다`;
+                }
+              })()}
+            </button>
+          )}
         </div>
+
+        {/* Likers Modal */}
+        <ResponsiveModal
+          open={showLikers}
+          onOpenChange={setShowLikers}
+          title="아멘한 사람"
+        >
+          <ResponsiveModalBody className="space-y-3">
+            {post.likedUsers && post.likedUsers.length > 0 ? (
+              post.likedUsers.map((u) => (
+                <Link
+                  key={u.userId}
+                  href={`/profile/${u.userId}`}
+                  className="flex items-center gap-3"
+                  onClick={() => setShowLikers(false)}
+                >
+                  <UserAvatar src={u.avatarUrl} alt={u.userName} size="sm" />
+                  <span className="text-[13px] font-semibold text-gray-900">
+                    {u.userName}
+                    {u.userId === currentUserId && (
+                      <span className="text-gray-400 font-normal ml-1">
+                        (나)
+                      </span>
+                    )}
+                  </span>
+                </Link>
+              ))
+            ) : (
+              <p className="text-center text-[13px] text-gray-400 py-4">
+                아직 아무도 아멘하지 않았습니다.
+              </p>
+            )}
+          </ResponsiveModalBody>
+        </ResponsiveModal>
 
         <div className="flex items-center gap-2 mt-0.5">
           {commentCount > 0 && !showComments && (

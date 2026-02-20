@@ -26,7 +26,7 @@ interface QtAnswerRow {
     verse_from: number;
     verse_to: number;
   };
-  likes: { count: number }[];
+  likes: { user_id: string; user: { user_name: string; avatar_url?: string } }[];
   comments: { count: number }[];
   liked_by_me: { user_id: string }[];
 }
@@ -61,7 +61,10 @@ export default function HomePage() {
           daily_qt:oq_daily_qt (
             bible_book, chapter, verse_from, verse_to
           ),
-          likes:oq_qt_likes(count),
+          likes:oq_qt_likes(
+            user_id,
+            user:oq_users!user_id(user_name, avatar_url)
+          ),
           comments:oq_qt_comments(count),
           liked_by_me:oq_qt_likes(user_id)
         `,
@@ -110,9 +113,20 @@ export default function HomePage() {
             scriptureRef: item.daily_qt
               ? `${item.daily_qt.bible_book} ${item.daily_qt.chapter}:${item.daily_qt.verse_from}-${item.daily_qt.verse_to}`
               : "말씀 정보 없음",
-            amenCount: (item.likes && item.likes[0]?.count) || 0,
+            amenCount: item.likes?.length || 0,
+            likedUsers:
+              item.likes?.map((l: { user_id: string; user?: { user_name: string; avatar_url?: string } }) => ({
+                userId: l.user_id,
+                userName: l.user?.user_name || "알 수 없음",
+                avatarUrl: l.user?.avatar_url,
+              })) || [],
             commentCount: (item.comments && item.comments[0]?.count) || 0,
-            isLiked: (item.liked_by_me && item.liked_by_me.length > 0) || false,
+            isLiked:
+              (item.liked_by_me &&
+                item.liked_by_me.some(
+                  (like: { user_id: string }) => like.user_id === user?.id,
+                )) ||
+              false,
             timestamp: item.created_at,
             tags: [], // Tags not implemented in DB yet
             isAnonymous: !item.is_public,
