@@ -2,108 +2,100 @@
 
 일일 QT(Quiet Time) 묵상을 공유하고 소통하는 소셜 플랫폼입니다.
 
-## 프로젝트 구조
+## 프로젝트 개요
 
-이 프로젝트는 Next.js App Router를 사용합니다.
+이 프로젝트는 Vite로 작성된 기존 `daily-qt-mate`를 Next.js 15+ App Router 환경으로 마이그레이션하고, 성능 최적화 및 보안 강화를 거친 고도화된 버전입니다.
 
-### 주요 기능
+## 주요 기능
 
-- 📖 **오늘의 말씀**: 매일 새로운 성경 말씀과 묵상 카드
-- ✍️ **묵상 공유**: 개인 묵상을 텍스트와 이미지로 공유
-- 🤖 **AI 도우미**: Gemini AI를 활용한 묵상 질문 및 기도문 생성
-- 👥 **소셜 피드**: Instagram 스타일의 피드로 다른 사용자의 묵상 확인
-- 🏆 **게임화 요소**: 레벨, 경험치, 연속 일수, 뱃지 시스템
-- 📊 **활동 기록**: GitHub 스타일의 히트맵으로 활동 추적
+- 📖 **오늘의 말씀**: Supabase 연동을 통한 매일의 성경 본문 제공 및 캐싱
+- ✍️ **묵상 공유**: 개인 묵상을 텍스트(Markdown 지원)로 기록하고 피드에 공유
+- 🤖 **AI 인사이트**: Vercel AI SDK(Gemini 2.5 Flash) 기반 성경 묵상 질문 및 인사이트 자동 생성
+- 👥 **소셜 인터랙션**: Instagram 스타일 피드, 실시간 '아멘(좋아요)', 댓글 기능 및 반응형 모달
+- 🏆 **게임화 시스템**: KST 기준 스트릭(연속일수), 누적 묵상 기반 레벨, 뱃지 컬렉션 모달
+- 📈 **활동 대시보드**: 캘린더 히트맵을 통한 월간 활동 직관적 확인
 
 ## 기술 스택
 
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4
-- **Icons**: Lucide React
-- **AI**: Google Gemini API
+- **Frontend**: Next.js 15/16 (App Router), TypeScript, Tailwind CSS v4
+- **Backend/Storage**: Supabase (Database, Auth)
+- **AI**: Vercel AI SDK, `@ai-sdk/google` (Gemini 2.5 Flash)
+- **Auth**: Supabase Auth (Kakao OAuth 연동)
+- **Components**: Framer Motion (애니메이션), Lucide React (아이콘)
 - **Package Manager**: pnpm
 
 ## 시작하기
 
 ### 필수 요구사항
 
-- Node.js 20 이상
+- Node.js 20+
 - pnpm
 
-### 설치 및 실행
+### 설치 및 환경 변수 설정
 
 1. 의존성 설치:
+
 ```bash
 pnpm install
 ```
 
-2. 환경 변수 설정:
-`.env.local` 파일에서 `NEXT_PUBLIC_GEMINI_API_KEY`를 실제 Gemini API 키로 변경하세요.
+2. `.env.local` 설정:
+   프로젝트 루트에 `.env.local` 파일을 생성하고 아래 내용을 입력하세요.
 
-3. 개발 서버 실행:
+```env
+# Supabase 설정
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+
+# Kakao OAuth
+NEXT_PUBLIC_KAKAO_REST_API_KEY=your_kakao_api_key
+
+# AI 서비스 (Gemini)
+GEMINI_API_KEY=your_gemini_api_key
+```
+
+3. 서버 실행:
+
 ```bash
 pnpm dev
 ```
-
-4. 브라우저에서 [http://localhost:3000](http://localhost:3000) 접속
 
 ## 프로젝트 구조
 
 ```
 oq1/
-├── app/
-│   ├── components/          # 재사용 가능한 컴포넌트
-│   │   ├── DailyWordCard.tsx
-│   │   ├── FeedItem.tsx
-│   │   ├── Heatmap.tsx
-│   │   └── Navigation.tsx
-│   ├── services/            # API 서비스
-│   │   └── geminiService.ts
-│   ├── upload/              # 게시물 작성 페이지
-│   │   └── page.tsx
-│   ├── mypage/              # 마이페이지
-│   │   └── page.tsx
-│   ├── constants.ts         # 상수 및 목 데이터
-│   ├── types.ts             # TypeScript 타입 정의
-│   ├── layout.tsx           # 루트 레이아웃
-│   ├── page.tsx             # 홈 페이지
-│   └── globals.css          # 전역 스타일
-├── public/                  # 정적 파일
-├── .env.local               # 환경 변수
+├── app/                  # Next.js App Router
+│   ├── components/       # 도메인 특정 컴포넌트 (FeedItem, DailyWordCard 등)
+│   ├── services/         # 서버 측 로직 (aiService.ts 등)
+│   ├── (auth)/           # 인증 관련 페이지 (login, signup, auth)
+│   ├── mypage/           # 프로필 및 활동 관리
+│   ├── upload/           # 묵상 작성 및 AI 가이더
+│   ├── constants.ts      # 목 데이터 및 정적 설정
+│   └── types.ts          # 전역 타입 정의
+├── components/           # 공통 UI 컴포넌트
+│   └── ui/               # Shadcn UI (button, responsive-modal 등)
+├── lib/                  # 유틸리티 및 클라이언트 설정
+│   ├── utils.ts          # Feature Flag (isFeatureEnabled) 및 유틸 함수
+│   └── supabase/         # Supabase 클라이언트 세팅
+├── public/               # 정적 파일
 └── package.json
 ```
 
-## 주요 페이지
+## 최근 업데이트 (고도화 내역)
 
-- **/** - 홈 피드 (오늘의 말씀 + 소셜 피드)
-- **/upload** - 새 묵상 게시물 작성
-- **/mypage** - 사용자 프로필 및 활동 기록
+### 1. 보안 및 아키텍처 (Security & Arch)
 
-## 마이그레이션 내역
+- **Server Actions 전환**: AI 및 DB 연동을 서버 사이드로 격리하여 API 키 노출 전면 차단
+- **Vercel AI SDK 마이그레이션**: 기존 SDK를 대체하여 안정성 및 확장성 확보
+- **캐싱 최적화**: `unstable_cache`를 적용하여 AI 토큰 사용량 절감 및 응답 속도 최적화
 
-### 변경사항
+### 2. UI/UX 및 기능 (Product)
 
-1. **라우팅**: React Router → Next.js App Router
-2. **빌드 도구**: Vite → Next.js (Turbopack)
-3. **환경 변수**: `API_KEY` → `NEXT_PUBLIC_GEMINI_API_KEY`
-4. **네비게이션**: `useNavigate` → `useRouter` (next/navigation)
-5. **링크**: `Link` (react-router-dom) → `Link` (next/link)
-
-### 유지된 기능
-
-- 모든 UI 컴포넌트 및 스타일
-- Gemini AI 통합
-- 소셜 피드 기능
-- 게임화 요소
-- 반응형 디자인 (모바일/데스크톱)
-
-## 개발 노트
-
-- 모든 상호작용 컴포넌트는 `'use client'` 지시어 사용
-- Tailwind CSS v4의 `@theme` 규칙 사용
-- Instagram 스타일의 UI/UX 디자인
-- 한국어 인터페이스
+- **피처 플래그 기반 제어**: `photoUpload`, `tags` 등 미구현 기능을 중앙에서 관리
+- **게이미피케이션 정교화**: KST 시간대 보정 스트릭 계산 logic 및 뱃지 획득 조건 자동화
+- **실시간 반응 대시보드**: 내 게시물에 달린 최근 '아멘'과 댓글을 프로필에서 즉시 확인 가능
+- **가독성 개선**: AI 성경 통찰에 줄바꿈 유지 및 피드 카드 디자인 가독성 향상
 
 ## 라이선스
 
