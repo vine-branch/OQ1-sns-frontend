@@ -1,11 +1,16 @@
 "use client";
 
+import {
+  ResponsiveModal,
+  ResponsiveModalBody,
+} from "@/components/ui/responsive-modal";
 import { createClient } from "@/lib/supabase/client";
+import { formatRelativeTime, getTodayStr, isFeatureEnabled } from "@/lib/utils";
 import { Award, Calendar, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BADGES } from "../constants";
-import { Post } from "../types";
+import { Badge, Post } from "../types";
 import ActivityCalendar from "./ActivityCalendar";
 import FeedItem from "./FeedItem";
 import UserAvatar from "./UserAvatar";
@@ -37,6 +42,13 @@ interface QtPost {
   liked_by_me: { user_id: string }[];
 }
 
+interface Reaction {
+  id: string;
+  type: "like" | "comment";
+  user_name: string;
+  created_at: string;
+}
+
 interface ProfileViewProps {
   userId: string;
   isOwnProfile?: boolean;
@@ -53,9 +65,16 @@ export default function ProfileView({
   const [posts, setPosts] = useState<Post[]>([]);
   const [activityDates, setActivityDates] = useState<string[]>([]);
   const [hasDoneToday, setHasDoneToday] = useState(false);
+  const [reactions, setReactions] = useState<Reaction[]>([]);
+
+  // Badge Modal
+  const [showBadgeModal, setShowBadgeModal] = useState(false);
+
   const [stats, setStats] = useState({
     postCount: 0,
     streak: 0,
+    maxStreak: 0,
+    earlyBirdCount: 0,
     level: 1,
     currentExp: 0,
     maxExp: 100,
@@ -106,7 +125,6 @@ export default function ProfileView({
         )
         .eq("user_id", userId);
 
-      // 본인 프로필이 아니면 공개글만 조회
       if (!isOwnProfile) {
         query = query.eq("is_public", true);
       }
@@ -118,65 +136,90 @@ export default function ProfileView({
       if (rawPostData) {
         const postData = rawPostData as unknown as QtPost[];
 
-        // 활동 날짜 추출
+        // 날짜 및 스트릭 계산
         const dates = postData.map((post) => post.oq_daily_qt.qt_date);
         setActivityDates(dates);
 
-        // 스트릭 계산
-        const calculateStreak = (dateList: string[]) => {
+        const calculateStreaks = (dateList: string[]) => {
+          if (dateList.length === 0) return { current: 0, max: 0 };
           const uniqueDates = Array.from(new Set(dateList)).sort((a, b) =>
             b.localeCompare(a),
           );
-          if (uniqueDates.length === 0) return 0;
 
-          const today = new Date();
-          const todayStr = today.toISOString().split("T")[0];
+          let maxStreak = 1;
+          let runningStreak = 1;
+          for (let i = 1; i < uniqueDates.length; i++) {
+            const currentD = new Date(uniqueDates[i - 1]); // descending, so this is newer
+            const prevD = new Date(uniqueDates[i]); // older
+            const diffHours =
+              (currentD.getTime() - prevD.getTime()) / (1000 * 3600);
+            if (diffHours >= 23 && diffHours <= 25) {
+              // exactly 1 day diff
+              runningStreak++;
+              maxStreak = Math.max(maxStreak, runningStreak);
+            } else {
+              runningStreak = 1;
+            }
+          }
+
+          const todayStr = getTodayStr();
+          const today = new Date(todayStr); // local KST 00:00:00
+
           const yesterday = new Date(today);
           yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = yesterday.toISOString().split("T")[0];
+          const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
 
           const dateSet = new Set(uniqueDates);
-          let streak = 0;
-          let checkDate = new Date(today);
+          let currentStreak = 0;
+          let checkDate = new Date(todayStr);
 
           if (!dateSet.has(todayStr)) {
-            if (!dateSet.has(yesterdayStr)) return 0;
-            checkDate = new Date(yesterday);
+            if (!dateSet.has(yesterdayStr)) {
+              return { current: 0, max: maxStreak };
+            }
+            checkDate = new Date(yesterdayStr);
           }
 
           while (true) {
-            const dateStr = checkDate.toISOString().split("T")[0];
-            if (dateSet.has(dateStr)) {
-              streak++;
+            const dStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
+            if (dateSet.has(dStr)) {
+              currentStreak++;
               checkDate.setDate(checkDate.getDate() - 1);
             } else {
               break;
             }
           }
-          return streak;
+
+          return {
+            current: Math.max(1, currentStreak),
+            max: Math.max(currentStreak, maxStreak),
+          };
         };
 
-        const currentStreak = calculateStreak(dates);
+        const { current: currentStreak, max: maxStreak } =
+          calculateStreaks(dates);
 
-        // 오늘 인증 여부
-        const now = new Date();
-        const startOfToday = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-        ).getTime();
+        const startOfToday = new Date().setHours(0, 0, 0, 0);
         const doneToday = postData.some(
           (post) => new Date(post.created_at).getTime() >= startOfToday,
         );
         setHasDoneToday(doneToday);
 
+        // Count early birds
+        let earlyCount = 0;
+        postData.forEach((p) => {
+          const d = new Date(p.created_at);
+          if (d.getHours() < 6) earlyCount++;
+        });
+
         setStats((prev) => ({
           ...prev,
           postCount: count || 0,
           streak: currentStreak,
+          maxStreak: maxStreak,
+          earlyBirdCount: earlyCount,
         }));
 
-        // FeedItem 형식 변환
         const formattedPosts: Post[] = postData.map((post) => ({
           id: post.id,
           user: {
@@ -204,6 +247,56 @@ export default function ProfileView({
           imageUrl: undefined,
         }));
         setPosts(formattedPosts);
+
+        if (isOwnProfile && postData.length > 0) {
+          const postIds = postData.map((p) => p.id);
+
+          const { data: latestLikes } = await supabase
+            .from("oq_qt_likes")
+            .select("id, created_at, user:oq_users!inner(user_name)")
+            .in("answer_id", postIds)
+            .neq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(3);
+
+          const { data: latestComments } = await supabase
+            .from("oq_qt_comments")
+            .select("id, created_at, user:oq_users!inner(user_name)")
+            .in("answer_id", postIds)
+            .neq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(3);
+
+          const allReactions: Reaction[] = [];
+          if (latestLikes) {
+            latestLikes.forEach((l) => {
+              const u = l.user as unknown as { user_name: string };
+              allReactions.push({
+                id: l.id,
+                type: "like",
+                user_name: u?.user_name,
+                created_at: l.created_at,
+              });
+            });
+          }
+          if (latestComments) {
+            latestComments.forEach((c) => {
+              const u = c.user as unknown as { user_name: string };
+              allReactions.push({
+                id: c.id,
+                type: "comment",
+                user_name: u?.user_name,
+                created_at: c.created_at,
+              });
+            });
+          }
+          allReactions.sort(
+            (a, b) =>
+              new Date(b.created_at).getTime() -
+              new Date(a.created_at).getTime(),
+          );
+          setReactions(allReactions.slice(0, 3));
+        }
       }
       setLoading(false);
     };
@@ -230,6 +323,14 @@ export default function ProfileView({
     );
 
   const expPercentage = Math.min((stats.currentExp / stats.maxExp) * 100, 100);
+
+  // Calculate Badges
+  const computedBadges: Badge[] = [
+    { ...BADGES[0], acquired: stats.maxStreak >= 3 },
+    { ...BADGES[1], acquired: stats.maxStreak >= 7 },
+    { ...BADGES[2], acquired: stats.earlyBirdCount >= 10 },
+    { ...BADGES[3], acquired: stats.postCount >= 100 },
+  ];
 
   return (
     <div className="w-full">
@@ -328,15 +429,19 @@ export default function ProfileView({
                 <Award className="text-gray-900" size={18} />
                 <h2 className="font-bold text-gray-900 text-sm">뱃지 컬렉션</h2>
               </div>
-              <span className="text-xs text-blue-500 font-semibold cursor-pointer">
+              <span
+                className="text-xs text-blue-500 font-semibold cursor-pointer"
+                onClick={() => setShowBadgeModal(true)}
+              >
                 모두 보기
               </span>
             </div>
             <div className="grid grid-cols-4 gap-4">
-              {BADGES.map((badge) => (
+              {computedBadges.map((badge) => (
                 <div
                   key={badge.id}
-                  className="flex flex-col items-center gap-2"
+                  className="flex flex-col items-center gap-2 cursor-pointer transition-opacity hover:opacity-80"
+                  onClick={() => setShowBadgeModal(true)}
                 >
                   <div
                     className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl border ${badge.acquired ? "bg-gray-50 border-gray-200" : "bg-gray-50 border-gray-100 grayscale opacity-40"}`}
@@ -351,6 +456,48 @@ export default function ProfileView({
                 </div>
               ))}
             </div>
+
+            <ResponsiveModal
+              open={showBadgeModal}
+              onOpenChange={setShowBadgeModal}
+              title="나의 뱃지 컬렉션"
+            >
+              <ResponsiveModalBody className="max-h-[70vh] overflow-y-auto">
+                <div className="space-y-4">
+                  {computedBadges.map((badge) => (
+                    <div
+                      key={badge.id}
+                      className="flex gap-4 p-4 border border-gray-100 rounded-xl items-center bg-gray-50/50"
+                    >
+                      <div
+                        className={`w-16 h-16 shrink-0 rounded-full flex items-center justify-center text-3xl border shadow-sm ${badge.acquired ? "bg-white border-gray-200" : "bg-gray-100 border-gray-100 grayscale opacity-40"}`}
+                      >
+                        {badge.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-sm font-bold text-gray-900">
+                          {badge.name}
+                        </h3>
+                        <p className="text-[12px] text-gray-500 mt-1 leading-snug">
+                          {badge.description}
+                        </p>
+                        <div className="mt-2 flex items-center">
+                          {badge.acquired ? (
+                            <span className="text-[10px] font-bold text-green-600 bg-green-100 px-2 py-0.5 rounded">
+                              획득 완료
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-medium text-gray-400 bg-gray-200 px-2 py-0.5 rounded">
+                              미획득
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ResponsiveModalBody>
+            </ResponsiveModal>
           </div>
 
           <div className="bg-white p-5 rounded-lg border border-gray-200">
@@ -399,53 +546,67 @@ export default function ProfileView({
                     지체들의 따뜻한 마음을 확인하세요.
                   </p>
 
-                  <div className="bg-white/10 backdrop-blur-md rounded-lg p-3 mb-2 flex items-center gap-3 border border-white/10">
-                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm">
-                      🙏
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold">{`이믿음님이 '아멘'을 보냈어요.`}</p>
-                      <span className="text-[10px] opacity-70">10분 전</span>
-                    </div>
-                  </div>
-                  <div className="bg-white/10 backdrop-blur-md rounded-lg p-3 flex items-center gap-3 border border-white/10">
-                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm">
-                      💬
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold">
-                        박사랑님이 댓글을 남겼어요.
+                  {reactions.length > 0 ? (
+                    reactions.map((reaction) => (
+                      <div
+                        key={reaction.id}
+                        className="bg-white/10 backdrop-blur-md rounded-lg p-3 mb-2 last:mb-0 flex items-center gap-3 border border-white/10"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm shrink-0">
+                          {reaction.type === "like" ? "🙏" : "💬"}
+                        </div>
+                        <div className="leading-tight">
+                          <p className="text-xs font-semibold">
+                            {reaction.type === "like"
+                              ? `${reaction.user_name}님이 '아멘'을 보냈어요.`
+                              : `${reaction.user_name}님이 댓글을 남겼어요.`}
+                          </p>
+                          <span className="text-[10px] opacity-70 mt-0.5 block">
+                            {formatRelativeTime(reaction.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="bg-white/10 backdrop-blur-md rounded-lg p-4 flex flex-col items-center justify-center text-center border border-white/10">
+                      <span className="text-2xl mb-2">🌱</span>
+                      <p className="text-sm font-semibold">
+                        아직 받은 반응이 없습니다.
                       </p>
-                      <span className="text-[10px] opacity-70">1시간 전</span>
+                      <p className="text-[10px] text-white/80 mt-1">
+                        지체들과 말씀을 나누고 교제해 보세요!
+                      </p>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
               {/* 청년부 현황 */}
-              <div className="bg-white p-5 rounded-lg border border-gray-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <MessageSquare className="text-gray-900" size={18} />
-                  <h2 className="font-bold text-gray-900 text-sm">
-                    청년부 현황
-                  </h2>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-600">진행률</span>
-                    <span className="font-bold text-blue-500">82%</span>
+              {isFeatureEnabled("photoUpload") && (
+                <div className="bg-white p-5 rounded-lg border border-gray-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MessageSquare className="text-gray-900" size={18} />
+                    <h2 className="font-bold text-gray-900 text-sm">
+                      청년부 현황
+                    </h2>
                   </div>
-                  <div className="w-full bg-gray-100 rounded-full h-1.5">
-                    <div
-                      className="bg-blue-500 h-1.5 rounded-full"
-                      style={{ width: "82%" }}
-                    ></div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-gray-600">진행률</span>
+                      <span className="font-bold text-blue-500">82%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-1.5">
+                      <div
+                        className="bg-blue-500 h-1.5 rounded-full"
+                        style={{ width: "82%" }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-400 text-right mt-1">
+                      42명 완료
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-400 text-right mt-1">
-                    42명 완료
-                  </p>
                 </div>
-              </div>
+              )}
             </>
           )}
 
