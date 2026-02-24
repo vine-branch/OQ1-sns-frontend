@@ -38,3 +38,15 @@ export function getTodayStr(): string {
   const day = String(today.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+// 개발 중인 기능 등을 환경/상황에 따라 제어하기 위한 피처 플래그 함수
+export type FeatureFlag = "photoUpload" | "tags";
+
+export function isFeatureEnabled(feature: FeatureFlag): boolean {
+  const featureConfig: Record<FeatureFlag, boolean> = {
+    photoUpload: false, // 아직 개발 중이므로 false
+    tags: false, // 아직 개발 중이므로 false
+  };
+
+  return featureConfig[feature] ?? false;
+}

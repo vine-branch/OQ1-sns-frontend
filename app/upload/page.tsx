@@ -3,7 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
-import { sanitizeText } from "@/lib/utils";
+import { isFeatureEnabled, sanitizeText } from "@/lib/utils";
 import { User } from "@supabase/supabase-js";
 import {
   ChevronDown,
@@ -23,7 +23,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { generatePrayerFromReflection } from "../services/geminiService";
+import { getDailyInsight } from "../services/aiService";
 import { createPost, State } from "./actions";
 
 // Type Definitions
@@ -61,7 +61,7 @@ function UploadForm() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [image, setImage] = useState<string | null>(null);
-  const [isGeneratingPrayer, setIsGeneratingPrayer] = useState(false);
+  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [showReward, setShowReward] = useState(false);
   const [isQuoteExpanded, setIsQuoteExpanded] = useState(false);
 
@@ -166,15 +166,16 @@ function UploadForm() {
     setTags(tags.filter((tag) => tag !== tagToRemove));
   };
 
-  const handleGeneratePrayer = async () => {
-    if (!content || content.length < 10) {
-      alert("묵상 내용을 10자 이상 적어주세요!");
+  const handleGenerateInsight = async () => {
+    const scripture = dailyQt?.content;
+    if (!scripture) {
+      alert("오늘의 성경 본문을 불러오지 못했습니다.");
       return;
     }
-    setIsGeneratingPrayer(true);
-    const prayer = await generatePrayerFromReflection(content);
-    setContent(content + "\n\n[오늘의 기도]\n" + prayer);
-    setIsGeneratingPrayer(false);
+    setIsGeneratingInsight(true);
+    const insight = await getDailyInsight(scripture);
+    setContent((prev) => (prev ? prev + "\n\n" + insight : insight));
+    setIsGeneratingInsight(false);
   };
 
   const handleCloseReward = () => {
@@ -214,7 +215,7 @@ function UploadForm() {
             <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-yellow-200 rounded-full blur-3xl opacity-50"></div>
 
             <div className="relative z-10">
-              <div className="w-20 h-20 bg-gradient-to-tr from-yellow-300 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-5 text-white shadow-lg">
+              <div className="w-20 h-20 bg-linear-to-tr from-yellow-300 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-5 text-white shadow-lg">
                 <Trophy size={40} strokeWidth={1.5} />
               </div>
 
@@ -304,7 +305,7 @@ function UploadForm() {
                 {dailyQt.content || "묵상 말씀을 읽어보세요."}
               </p>
               {!isQuoteExpanded && (
-                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-gray-50 to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 h-10 bg-linear-to-t from-gray-50 to-transparent" />
               )}
             </div>
             <button
@@ -378,17 +379,17 @@ function UploadForm() {
             {/* AI Generation Button */}
             <div className="flex justify-end mt-2">
               <button
-                onClick={handleGeneratePrayer}
-                disabled={isGeneratingPrayer}
+                onClick={handleGenerateInsight}
+                disabled={isGeneratingInsight}
                 className="text-xs font-semibold text-purple-600 flex items-center gap-1 bg-purple-50 px-2.5 py-1.5 rounded-md hover:bg-purple-100 transition-colors"
                 type="button"
               >
-                {isGeneratingPrayer ? (
+                {isGeneratingInsight ? (
                   <Sparkles size={12} className="animate-spin" />
                 ) : (
                   <Sparkles size={12} />
                 )}
-                AI 기도문
+                AI 묵상 질문
               </button>
             </div>
           </div>
@@ -396,61 +397,65 @@ function UploadForm() {
 
         {/* Tools List */}
         <div className="divide-y divide-gray-100 border-b border-gray-100">
-          {/* Action: Add Photo */}
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center justify-between py-3.5 px-4 cursor-pointer active:bg-gray-50 transition-colors"
-          >
-            <span className="text-base text-gray-900">사진 추가</span>
-            <div className="flex items-center gap-2">
-              {image && (
-                <span className="text-xs text-blue-500 font-medium">
-                  1장 선택됨
-                </span>
-              )}
-              <ImageIcon size={20} className="text-gray-400" />
+          {/* Action: Add Photo (미지원으로 임시 숨김) */}
+          {isFeatureEnabled("photoUpload") && (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center justify-between py-3.5 px-4 cursor-pointer active:bg-gray-50 transition-colors"
+            >
+              <span className="text-base text-gray-900">사진 추가</span>
+              <div className="flex items-center gap-2">
+                {image && (
+                  <span className="text-xs text-blue-500 font-medium">
+                    1장 선택됨
+                  </span>
+                )}
+                <ImageIcon size={20} className="text-gray-400" />
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*"
+                onChange={handleImageUpload}
+                name="image" // Prepare for server upload
+              />
             </div>
-            <input
-              type="file"
-              ref={fileInputRef}
-              className="hidden"
-              accept="image/*"
-              onChange={handleImageUpload}
-              name="image" // Prepare for server upload
-            />
-          </div>
+          )}
 
-          {/* Action: Tags */}
-          <div className="py-3.5 px-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-base text-gray-900">태그</span>
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 justify-end max-w-[70%]">
-                  {tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded font-medium flex items-center gap-1 cursor-pointer"
-                      onClick={() => removeTag(tag)}
-                    >
-                      #{tag} <X size={8} />
-                    </span>
-                  ))}
-                </div>
-              )}
+          {/* Action: Tags (미지원으로 임시 숨김) */}
+          {isFeatureEnabled("tags") && (
+            <div className="py-3.5 px-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-base text-gray-900">태그</span>
+                {tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 justify-end max-w-[70%]">
+                    {tags.map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] rounded font-medium flex items-center gap-1 cursor-pointer"
+                        onClick={() => removeTag(tag)}
+                      >
+                        #{tag} <X size={8} />
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Input
+                type="text"
+                placeholder="태그 입력... (Enter)"
+                className="w-full text-sm bg-transparent border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-gray-400 shadow-none h-auto"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleAddTag}
+                // Prevent form submission on Enter
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") e.preventDefault();
+                }}
+              />
             </div>
-            <Input
-              type="text"
-              placeholder="태그 입력... (Enter)"
-              className="w-full text-sm bg-transparent border-none p-0 focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-gray-400 shadow-none h-auto"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={handleAddTag}
-              // Prevent form submission on Enter
-              onKeyPress={(e) => {
-                if (e.key === "Enter") e.preventDefault();
-              }}
-            />
-          </div>
+          )}
 
           {/* Action: Anonymous Toggle */}
           <div className="flex items-center justify-between py-3.5 px-4">
@@ -469,7 +474,7 @@ function UploadForm() {
             >
               <div
                 className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all shadow-sm ${
-                  isAnonymous ? "left-[22px]" : "left-0.5"
+                  isAnonymous ? "left-5.5" : "left-0.5"
                 }`}
               ></div>
             </button>

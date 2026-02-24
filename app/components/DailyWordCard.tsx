@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { BookOpen, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { getDailyInsight } from "../services/geminiService";
+import { getDailyInsight } from "../services/aiService";
 import type { DailyWord } from "../types";
 
 interface Props {
@@ -203,7 +203,7 @@ const DailyWordCard = ({ demoData }: Props) => {
                     <h4 className="text-sm font-bold text-gray-900 mb-1">
                       묵상 포인트
                     </h4>
-                    <p className="text-sm text-gray-700 leading-relaxed">
+                    <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
                       {insight}
                     </p>
                   </div>
