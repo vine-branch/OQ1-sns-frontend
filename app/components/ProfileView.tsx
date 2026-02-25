@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/responsive-modal";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeTime, getTodayStr, isFeatureEnabled } from "@/lib/utils";
+import { motion } from "framer-motion";
 import { Award, Calendar, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -48,6 +49,23 @@ interface Reaction {
   user_name: string;
   created_at: string;
 }
+
+// ─── Animation Helpers ────────────────────────────────────────────────────
+const fadeRise = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.45, ease: "easeOut" as const, delay },
+});
+
+const feedItemTransition = (index: number) => ({
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0 },
+  transition: {
+    duration: 0.4,
+    ease: "easeOut" as const,
+    delay: 0.5 + Math.min(index, 8) * 0.07,
+  },
+});
 
 interface ProfileViewProps {
   userId: string;
@@ -334,8 +352,24 @@ export default function ProfileView({
 
   return (
     <div className="w-full">
+      {/* ── Ambient Floating Particles ── */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <motion.div
+          className="absolute w-64 h-64 rounded-full bg-purple-200/15 blur-3xl"
+          style={{ top: "10%", right: "-12%" }}
+          animate={{ y: [0, -18, 0], opacity: [0.2, 0.35, 0.2] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" as const }}
+        />
+        <motion.div
+          className="absolute w-48 h-48 rounded-full bg-amber-200/15 blur-3xl"
+          style={{ bottom: "30%", left: "-10%" }}
+          animate={{ y: [0, 12, 0], opacity: [0.15, 0.28, 0.15] }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" as const, delay: 2 }}
+        />
+      </div>
+
       {/* Header / Profile Section */}
-      <div className="bg-white p-6 md:rounded-lg md:border border-gray-200 mb-6 relative">
+      <motion.div {...fadeRise(0)} className="bg-white p-6 md:rounded-lg md:border border-gray-200 mb-6 relative">
         {/* 데스크톱 상단 메뉴 액션 (Slot) */}
         {children && (
           <div className="absolute top-4 right-4 hidden md:block z-20">
@@ -419,11 +453,11 @@ export default function ProfileView({
             ></div>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
         <div className="md:col-span-2 space-y-6">
-          <div className="bg-white p-5 rounded-lg border border-gray-200">
+          <motion.div {...fadeRise(0.15)} className="bg-white p-5 rounded-lg border border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Award className="text-gray-900" size={18} />
@@ -498,9 +532,9 @@ export default function ProfileView({
                 </div>
               </ResponsiveModalBody>
             </ResponsiveModal>
-          </div>
+          </motion.div>
 
-          <div className="bg-white p-5 rounded-lg border border-gray-200">
+          <motion.div {...fadeRise(0.25)} className="bg-white p-5 rounded-lg border border-gray-200">
             <div className="flex items-center gap-2 mb-4">
               <Calendar className="text-gray-900" size={18} />
               <h2 className="font-bold text-gray-900 text-sm">활동 기록</h2>
@@ -509,9 +543,9 @@ export default function ProfileView({
               completedDates={activityDates}
               streak={stats.streak}
             />
-          </div>
+          </motion.div>
 
-          <div>
+          <motion.div {...fadeRise(0.35)}>
             <h2 className="font-bold text-gray-900 text-sm mb-4 px-1">
               {isOwnProfile
                 ? "내 큐티 묵상"
@@ -519,12 +553,13 @@ export default function ProfileView({
             </h2>
             <div className="space-y-0">
               {posts.length > 0 ? (
-                posts.map((post) => (
-                  <FeedItem
-                    key={post.id}
-                    post={post}
-                    currentUserId={isOwnProfile ? userId : null}
-                  />
+                posts.map((post, index) => (
+                  <motion.div key={post.id} {...feedItemTransition(index)}>
+                    <FeedItem
+                      post={post}
+                      currentUserId={isOwnProfile ? userId : null}
+                    />
+                  </motion.div>
                 ))
               ) : (
                 <div className="text-center py-10 text-gray-500 text-sm bg-gray-50 rounded-lg">
@@ -532,14 +567,14 @@ export default function ProfileView({
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         </div>
 
         <div className="space-y-6">
           {isOwnProfile && (
             <>
               {/* Gradient Card: 오늘의 응원 */}
-              <div className="bg-linear-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-lg shadow-md text-white relative overflow-hidden">
+              <motion.div {...fadeRise(0.2)} className="bg-linear-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-lg shadow-md text-white relative overflow-hidden">
                 <div className="relative z-10">
                   <h3 className="text-lg font-bold mb-1">오늘의 응원</h3>
                   <p className="text-white/80 text-xs mb-4">
@@ -579,7 +614,7 @@ export default function ProfileView({
                     </div>
                   )}
                 </div>
-              </div>
+              </motion.div>
 
               {/* 청년부 현황 */}
               {isFeatureEnabled("photoUpload") && (
@@ -611,7 +646,7 @@ export default function ProfileView({
           )}
 
           {/* 소속 정보 (상시 노출) */}
-          <div className="bg-white p-5 rounded-lg border border-gray-200">
+          <motion.div {...fadeRise(0.3)} className="bg-white p-5 rounded-lg border border-gray-200">
             <div className="flex items-center gap-2 mb-4">
               <MessageSquare className="text-gray-900" size={18} />
               <h2 className="font-bold text-gray-900 text-sm">소속 정보</h2>
@@ -630,7 +665,7 @@ export default function ProfileView({
                 </span>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>

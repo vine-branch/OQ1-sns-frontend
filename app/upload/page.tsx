@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { isFeatureEnabled, sanitizeText } from "@/lib/utils";
 import { User } from "@supabase/supabase-js";
+import { motion } from "framer-motion";
 import {
   ChevronDown,
   ChevronUp,
@@ -26,7 +27,14 @@ import React, {
 import { getDailyInsight } from "../services/aiService";
 import { createPost, State } from "./actions";
 
-// Type Definitions
+// ─── Animation Helpers ────────────────────────────────────────────────────
+const fadeRise = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.45, ease: "easeOut" as const, delay },
+});
+
+// ─── Type Definitions ─────────────────────────────────────────────────────
 interface DailyQt {
   id: string;
   qt_date: string;
@@ -206,10 +214,36 @@ function UploadForm() {
       <input type="hidden" name="tags" value={JSON.stringify(tags)} />
       {/* Content is handled by textarea name="content" directly */}
 
+      {/* ── Ambient Floating Particles ── */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
+        <motion.div
+          className="absolute w-64 h-64 rounded-full bg-pink-200/20 blur-3xl"
+          style={{ top: "8%", right: "-10%" }}
+          animate={{ y: [0, -20, 0], opacity: [0.2, 0.38, 0.2] }}
+          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" as const }}
+        />
+        <motion.div
+          className="absolute w-48 h-48 rounded-full bg-blue-200/15 blur-3xl"
+          style={{ bottom: "20%", left: "-8%" }}
+          animate={{ y: [0, 14, 0], opacity: [0.15, 0.3, 0.15] }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" as const, delay: 3 }}
+        />
+      </div>
+
       {/* Reward Overlay */}
       {showReward && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in p-6">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center transform scale-100 animate-bounce-in relative overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-6"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.4, ease: "easeOut" as const, delay: 0.1 }}
+            className="bg-white rounded-2xl p-8 max-w-sm w-full shadow-2xl text-center relative overflow-hidden"
+          >
             {/* Background Gradient Blob */}
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-purple-200 rounded-full blur-3xl opacity-50"></div>
             <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-yellow-200 rounded-full blur-3xl opacity-50"></div>
@@ -259,8 +293,8 @@ function UploadForm() {
                 <span>홈으로 돌아가기</span>
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
 
       {/* Header - Instagram Style */}
@@ -291,7 +325,7 @@ function UploadForm() {
       <div className="max-w-2xl mx-auto">
         {/* Today's Word Quote */}
         {dailyQt && (
-          <div className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mx-4 mt-4 mb-2">
+          <motion.div {...fadeRise(0)} className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mx-4 mt-4 mb-2">
             <h2 className="font-bold text-gray-900 text-sm mb-2">
               {dailyQt.bible_book} {dailyQt.chapter}:{dailyQt.verse_from}-
               {dailyQt.verse_to}
@@ -323,11 +357,11 @@ function UploadForm() {
                 </>
               )}
             </button>
-          </div>
+          </motion.div>
         )}
 
         {/* Content Area: Image (Left) + Text (Right) Split View */}
-        <div className="flex p-4 gap-4 border-b border-gray-100">
+        <motion.div {...fadeRise(0.15)} className="flex p-4 gap-4 border-b border-gray-100">
           {/* Left: Thumbnail */}
           <div className="shrink-0 pt-1">
             {image ? (
@@ -393,10 +427,10 @@ function UploadForm() {
               </button>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Tools List */}
-        <div className="divide-y divide-gray-100 border-b border-gray-100">
+        <motion.div {...fadeRise(0.3)} className="divide-y divide-gray-100 border-b border-gray-100">
           {/* Action: Add Photo (미지원으로 임시 숨김) */}
           {isFeatureEnabled("photoUpload") && (
             <div
@@ -479,7 +513,7 @@ function UploadForm() {
               ></div>
             </button>
           </div>
-        </div>
+        </motion.div>
       </div>
     </form>
   );
