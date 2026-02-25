@@ -1,5 +1,7 @@
 "use client";
 
+import { EVENT_CHALLENGE } from "@/app/constants";
+import { differenceInCalendarDays, parseISO } from "date-fns";
 import { Home, PlusSquare, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -112,14 +114,26 @@ export const Sidebar = () => {
       <div className="mt-auto pt-6 border-t border-gray-100">
         <div className="bg-gray-50 rounded-xl p-4 border border-gray-200/80">
           <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide">
-            Current Challenge
+            Upcoming Event
           </p>
           <p className="text-sm font-semibold text-gray-900 mt-1">
-            사순절 40일 완주
+            {EVENT_CHALLENGE.name}
           </p>
           <div className="mt-2 flex justify-between items-end">
-            <span className="text-lg font-bold text-gray-900">D-12</span>
-            <span className="text-xs text-gray-400">화이팅!</span>
+            <span className="text-lg font-bold text-gray-900">
+              {(() => {
+                const dDay = differenceInCalendarDays(
+                  parseISO(EVENT_CHALLENGE.startDate),
+                  new Date(),
+                );
+                return dDay > 0
+                  ? `D-${dDay}`
+                  : dDay === 0
+                    ? "D-Day"
+                    : `D+${Math.abs(dDay)}`;
+              })()}
+            </span>
+            <span className="text-xs text-gray-400">함께해요!</span>
           </div>
         </div>
       </div>

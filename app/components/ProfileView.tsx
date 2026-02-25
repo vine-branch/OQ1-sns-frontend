@@ -37,6 +37,7 @@ interface QtPost {
     chapter: number;
     verse_from: number;
     verse_to: number;
+    content: string;
   };
   likes: { count: number }[];
   comments: { count: number }[];
@@ -96,6 +97,7 @@ export default function ProfileView({
     level: 1,
     currentExp: 0,
     maxExp: 100,
+    preferredType: "Morning" as "Morning" | "Night",
   });
 
   useEffect(() => {
@@ -133,7 +135,8 @@ export default function ProfileView({
             bible_book,
             chapter,
             verse_from,
-            verse_to
+            verse_to,
+            content
           ),
           likes:oq_qt_likes(count),
           comments:oq_qt_comments(count),
@@ -223,12 +226,24 @@ export default function ProfileView({
         );
         setHasDoneToday(doneToday);
 
-        // Count early birds
+        // Count early birds & day/night preference
         let earlyCount = 0;
+        let dayCount = 0;
+        let nightCount = 0;
         postData.forEach((p) => {
           const d = new Date(p.created_at);
-          if (d.getHours() < 6) earlyCount++;
+          const hour = d.getHours();
+          if (hour < 6) earlyCount++;
+
+          // Day: 06:00~18:00, Night: 18:00~06:00
+          if (hour >= 6 && hour < 18) {
+            dayCount++;
+          } else {
+            nightCount++;
+          }
         });
+
+        const preferredType = nightCount > dayCount ? "Night" : "Morning";
 
         setStats((prev) => ({
           ...prev,
@@ -236,6 +251,7 @@ export default function ProfileView({
           streak: currentStreak,
           maxStreak: maxStreak,
           earlyBirdCount: earlyCount,
+          preferredType: preferredType,
         }));
 
         const formattedPosts: Post[] = postData.map((post) => ({
@@ -246,7 +262,7 @@ export default function ProfileView({
             avatar:
               userData?.avatar_url ||
               "https://k.kakaocdn.net/dn/dpk9l1/btqmGhA2lKL/Oz0wDuJn1YV2DIn92f6DVK/img_640x640.jpg",
-            type: "Anytime",
+            type: preferredType,
             streak: currentStreak,
             group: userData ? `청년 ${userData.guk_no}국` : "청년부",
             level: 1,
@@ -256,6 +272,8 @@ export default function ProfileView({
           },
           timestamp: post.created_at,
           scriptureRef: `${post.oq_daily_qt.bible_book} ${post.oq_daily_qt.chapter}:${post.oq_daily_qt.verse_from}-${post.oq_daily_qt.verse_to}`,
+          scriptureContent: post.oq_daily_qt.content,
+          scriptureTitle: `${post.oq_daily_qt.bible_book} ${post.oq_daily_qt.chapter}장`,
           content: post.meditation,
           amenCount: (post.likes && post.likes[0]?.count) || 0,
           commentCount: (post.comments && post.comments[0]?.count) || 0,
@@ -358,18 +376,30 @@ export default function ProfileView({
           className="absolute w-64 h-64 rounded-full bg-purple-200/15 blur-3xl"
           style={{ top: "10%", right: "-12%" }}
           animate={{ y: [0, -18, 0], opacity: [0.2, 0.35, 0.2] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" as const }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "easeInOut" as const,
+          }}
         />
         <motion.div
           className="absolute w-48 h-48 rounded-full bg-amber-200/15 blur-3xl"
           style={{ bottom: "30%", left: "-10%" }}
           animate={{ y: [0, 12, 0], opacity: [0.15, 0.28, 0.15] }}
-          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" as const, delay: 2 }}
+          transition={{
+            duration: 6,
+            repeat: Infinity,
+            ease: "easeInOut" as const,
+            delay: 2,
+          }}
         />
       </div>
 
       {/* Header / Profile Section */}
-      <motion.div {...fadeRise(0)} className="bg-white p-6 md:rounded-lg md:border border-gray-200 mb-6 relative">
+      <motion.div
+        {...fadeRise(0)}
+        className="bg-white p-6 md:rounded-lg md:border border-gray-200 mb-6 relative"
+      >
         {/* 데스크톱 상단 메뉴 액션 (Slot) */}
         {children && (
           <div className="absolute top-4 right-4 hidden md:block z-20">
@@ -386,7 +416,9 @@ export default function ProfileView({
               hasDoneToday={hasDoneToday}
             />
             <div className="absolute -bottom-1 -right-1 bg-white p-1 rounded-full shadow border border-gray-100">
-              <span className="text-lg">☀️</span>
+              <span className="text-lg">
+                {stats.preferredType === "Night" ? "🌛" : "☀️"}
+              </span>
             </div>
           </div>
 
@@ -457,7 +489,10 @@ export default function ProfileView({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
         <div className="md:col-span-2 space-y-6">
-          <motion.div {...fadeRise(0.15)} className="bg-white p-5 rounded-lg border border-gray-200">
+          <motion.div
+            {...fadeRise(0.15)}
+            className="bg-white p-5 rounded-lg border border-gray-200"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Award className="text-gray-900" size={18} />
@@ -534,7 +569,10 @@ export default function ProfileView({
             </ResponsiveModal>
           </motion.div>
 
-          <motion.div {...fadeRise(0.25)} className="bg-white p-5 rounded-lg border border-gray-200">
+          <motion.div
+            {...fadeRise(0.25)}
+            className="bg-white p-5 rounded-lg border border-gray-200"
+          >
             <div className="flex items-center gap-2 mb-4">
               <Calendar className="text-gray-900" size={18} />
               <h2 className="font-bold text-gray-900 text-sm">활동 기록</h2>
@@ -574,7 +612,10 @@ export default function ProfileView({
           {isOwnProfile && (
             <>
               {/* Gradient Card: 오늘의 응원 */}
-              <motion.div {...fadeRise(0.2)} className="bg-linear-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-lg shadow-md text-white relative overflow-hidden">
+              <motion.div
+                {...fadeRise(0.2)}
+                className="bg-linear-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-lg shadow-md text-white relative overflow-hidden"
+              >
                 <div className="relative z-10">
                   <h3 className="text-lg font-bold mb-1">오늘의 응원</h3>
                   <p className="text-white/80 text-xs mb-4">
@@ -646,7 +687,10 @@ export default function ProfileView({
           )}
 
           {/* 소속 정보 (상시 노출) */}
-          <motion.div {...fadeRise(0.3)} className="bg-white p-5 rounded-lg border border-gray-200">
+          <motion.div
+            {...fadeRise(0.3)}
+            className="bg-white p-5 rounded-lg border border-gray-200"
+          >
             <div className="flex items-center gap-2 mb-4">
               <MessageSquare className="text-gray-900" size={18} />
               <h2 className="font-bold text-gray-900 text-sm">소속 정보</h2>

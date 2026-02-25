@@ -21,6 +21,7 @@ export interface User {
   currentExp: number; // Added
   maxExp: number; // Added
   hasDoneToday?: boolean;
+  enneagramType?: string;
 }
 
 export interface Post {
@@ -28,6 +29,8 @@ export interface Post {
   user: User;
   content: string;
   scriptureRef: string;
+  scriptureContent?: string;
+  scriptureTitle?: string;
   imageUrl?: string;
   isAnonymous?: boolean;
   amenCount: number;

@@ -72,9 +72,11 @@ function UploadForm() {
   const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [showReward, setShowReward] = useState(false);
   const [isQuoteExpanded, setIsQuoteExpanded] = useState(false);
+  const [showQuoteExpand, setShowQuoteExpand] = useState(false);
 
-  // Hidden file input ref
+  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const quoteContentRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
     // Check Action Success
@@ -146,6 +148,17 @@ function UploadForm() {
     };
     init();
   }, [router, editPostId]);
+
+  // 콘텐츠가 4줄(96px) 초과일 때만 더보기 표시
+  useEffect(() => {
+    if (!quoteContentRef.current) return;
+    const timer = setTimeout(() => {
+      if (quoteContentRef.current) {
+        setShowQuoteExpand(quoteContentRef.current.scrollHeight > 96);
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [dailyQt]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -220,13 +233,22 @@ function UploadForm() {
           className="absolute w-64 h-64 rounded-full bg-pink-200/20 blur-3xl"
           style={{ top: "8%", right: "-10%" }}
           animate={{ y: [0, -20, 0], opacity: [0.2, 0.38, 0.2] }}
-          transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" as const }}
+          transition={{
+            duration: 7,
+            repeat: Infinity,
+            ease: "easeInOut" as const,
+          }}
         />
         <motion.div
           className="absolute w-48 h-48 rounded-full bg-blue-200/15 blur-3xl"
           style={{ bottom: "20%", left: "-8%" }}
           animate={{ y: [0, 14, 0], opacity: [0.15, 0.3, 0.15] }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" as const, delay: 3 }}
+          transition={{
+            duration: 9,
+            repeat: Infinity,
+            ease: "easeInOut" as const,
+            delay: 3,
+          }}
         />
       </div>
 
@@ -325,43 +347,56 @@ function UploadForm() {
       <div className="max-w-2xl mx-auto">
         {/* Today's Word Quote */}
         {dailyQt && (
-          <motion.div {...fadeRise(0)} className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mx-4 mt-4 mb-2">
+          <motion.div
+            {...fadeRise(0)}
+            className="bg-gray-50 p-4 rounded-lg border-l-4 border-gray-300 mx-4 mt-4 mb-2"
+          >
             <h2 className="font-bold text-gray-900 text-sm mb-2">
               {dailyQt.bible_book} {dailyQt.chapter}:{dailyQt.verse_from}-
               {dailyQt.verse_to}
             </h2>
             <div
               className={`relative ${
-                !isQuoteExpanded ? "max-h-20 overflow-hidden" : ""
+                showQuoteExpand && !isQuoteExpanded
+                  ? "max-h-24 overflow-hidden"
+                  : ""
               } transition-all duration-300`}
             >
-              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line italic">
+              <p
+                ref={quoteContentRef}
+                className="text-sm text-gray-600 leading-relaxed whitespace-pre-line italic"
+              >
                 {dailyQt.content || "묵상 말씀을 읽어보세요."}
               </p>
-              {!isQuoteExpanded && (
+              {showQuoteExpand && !isQuoteExpanded && (
                 <div className="absolute bottom-0 left-0 right-0 h-10 bg-linear-to-t from-gray-50 to-transparent" />
               )}
             </div>
-            <button
-              onClick={() => setIsQuoteExpanded(!isQuoteExpanded)}
-              className="w-full flex justify-center items-center gap-1 mt-2 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
-              type="button"
-            >
-              {isQuoteExpanded ? (
-                <>
-                  접기 <ChevronUp size={14} />
-                </>
-              ) : (
-                <>
-                  더 보기 <ChevronDown size={14} />
-                </>
-              )}
-            </button>
+            {showQuoteExpand && (
+              <button
+                onClick={() => setIsQuoteExpanded(!isQuoteExpanded)}
+                className="w-full flex justify-center items-center gap-1 mt-2 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
+                type="button"
+              >
+                {isQuoteExpanded ? (
+                  <>
+                    접기 <ChevronUp size={14} />
+                  </>
+                ) : (
+                  <>
+                    더 보기 <ChevronDown size={14} />
+                  </>
+                )}
+              </button>
+            )}
           </motion.div>
         )}
 
         {/* Content Area: Image (Left) + Text (Right) Split View */}
-        <motion.div {...fadeRise(0.15)} className="flex p-4 gap-4 border-b border-gray-100">
+        <motion.div
+          {...fadeRise(0.15)}
+          className="flex p-4 gap-4 border-b border-gray-100"
+        >
           {/* Left: Thumbnail */}
           <div className="shrink-0 pt-1">
             {image ? (
@@ -430,7 +465,10 @@ function UploadForm() {
         </motion.div>
 
         {/* Tools List */}
-        <motion.div {...fadeRise(0.3)} className="divide-y divide-gray-100 border-b border-gray-100">
+        <motion.div
+          {...fadeRise(0.3)}
+          className="divide-y divide-gray-100 border-b border-gray-100"
+        >
           {/* Action: Add Photo (미지원으로 임시 숨김) */}
           {isFeatureEnabled("photoUpload") && (
             <div

@@ -1,8 +1,32 @@
 import { clsx, type ClassValue } from "clsx";
-import { formatDistanceToNow } from "date-fns";
+import {
+  format,
+  formatDistanceToNow,
+  isSameDay,
+  isToday,
+  isYesterday,
+} from "date-fns";
 import { ko } from "date-fns/locale";
 import sanitizeHtml from "sanitize-html";
 import { twMerge } from "tailwind-merge";
+
+export function formatDate(
+  date: string | Date | undefined,
+  formatStr: string = "PPP",
+): string {
+  if (!date) return "";
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return "";
+
+  if (isToday(d)) return "오늘";
+  if (isYesterday(d)) return "어제";
+
+  return format(d, formatStr, { locale: ko });
+}
+
+export function isSameDayCheck(d1: string | Date, d2: string | Date): boolean {
+  return isSameDay(new Date(d1), new Date(d2));
+}
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

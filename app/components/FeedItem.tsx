@@ -1,10 +1,21 @@
 "use client";
 
+import {
+  ResponsiveModal,
+  ResponsiveModalBody,
+} from "@/components/ui/responsive-modal";
 import { createClient } from "@/lib/supabase/client";
 import { formatRelativeTime, sanitizeText } from "@/lib/utils";
-import { ResponsiveModal, ResponsiveModalBody } from "@/components/ui/responsive-modal";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown, ChevronUp, Heart, Lock, MessageCircle, MoreHorizontal, Send } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Heart,
+  Lock,
+  MessageCircle,
+  MoreHorizontal,
+  Send,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -43,6 +54,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
   const [isContentExpanded, setIsContentExpanded] = useState(false);
   const [showMoreButton, setShowMoreButton] = useState(false);
   const [showLikers, setShowLikers] = useState(false);
+  const [showScripture, setShowScripture] = useState(false);
   const contentRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -165,7 +177,7 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
   };
 
   return (
-    <div className="bg-white border-b border-gray-200 md:border md:rounded-lg md:mb-6">
+    <div className="bg-white border-b border-gray-200 md:border md:rounded-lg">
       {/* Header */}
       <div className="p-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -307,9 +319,13 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
               className="w-full flex justify-center items-center gap-1 mt-3 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
             >
               {isContentExpanded ? (
-                <>접기 <ChevronUp size={14} /></>
+                <>
+                  접기 <ChevronUp size={14} />
+                </>
               ) : (
-                <>더 보기 <ChevronDown size={14} /></>
+                <>
+                  더 보기 <ChevronDown size={14} />
+                </>
               )}
             </button>
           )}
@@ -329,7 +345,10 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
 
         {/* Scripture Reference */}
         <div className="mb-1">
-          <span className="text-[12px] font-medium text-blue-600/80 cursor-pointer">
+          <span
+            className="text-[12px] font-medium text-blue-600/80 cursor-pointer hover:underline"
+            onClick={() => setShowScripture(true)}
+          >
             📖 {post.scriptureRef}
           </span>
         </div>
@@ -375,7 +394,9 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
             >
               {(() => {
                 const others = liked
-                  ? (post.likedUsers || []).filter((u) => u.userId !== currentUserId)
+                  ? (post.likedUsers || []).filter(
+                      (u) => u.userId !== currentUserId,
+                    )
                   : post.likedUsers || [];
                 if (liked) {
                   if (count === 1) return "내가 아멘했습니다";
@@ -388,7 +409,8 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
                     : `나 외 ${count - 1}명이 아멘했습니다`;
                 } else {
                   if (!others[0]) return `아멘 ${count}개`;
-                  if (count === 1) return `${others[0].userName}님이 아멘했습니다`;
+                  if (count === 1)
+                    return `${others[0].userName}님이 아멘했습니다`;
                   if (count === 2)
                     return others[1]
                       ? `${others[0].userName}님과 ${others[1].userName}님이 아멘했습니다`
@@ -520,6 +542,34 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
             )}
           </div>
         )}
+
+        {/* Scripture Detail Modal */}
+        <ResponsiveModal
+          open={showScripture}
+          onOpenChange={setShowScripture}
+          title={post.scriptureTitle || "오늘의 말씀"}
+        >
+          <ResponsiveModalBody className="px-6 py-6">
+            <div className="flex flex-col items-center">
+              {/* Decorative Icon */}
+              <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mb-2">
+                <span className="text-xl">📖</span>
+              </div>
+
+              {/* Reference */}
+              <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">
+                {post.scriptureRef}
+              </h3>
+
+              {/* Content Card */}
+              <div className="w-full bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px] md:text-sm font-medium text-center">
+                  {post.scriptureContent || "말씀 내용을 불러올 수 없습니다."}
+                </p>
+              </div>
+            </div>
+          </ResponsiveModalBody>
+        </ResponsiveModal>
       </div>
     </div>
   );
