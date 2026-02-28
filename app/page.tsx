@@ -279,7 +279,7 @@ export default function HomePage() {
         </motion.div>
 
         {/* ── 피드 목록: Stagger Loading ── */}
-        <div className="space-y-0 md:space-y-4">
+        <div className="space-y-4">
           {loading ? (
             <motion.div
               {...feedItemTransition(0)}

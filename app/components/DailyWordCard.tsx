@@ -1,7 +1,15 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
-import { BookOpen, ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Sparkles,
+} from "lucide-react";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getDailyInsight } from "../services/aiService";
 import type { DailyWord } from "../types";
@@ -14,6 +22,7 @@ interface Props {
 const DailyWordCard = ({ demoData }: Props) => {
   const [expanded, setExpanded] = useState(false);
   const [showExpand, setShowExpand] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [qtLoading, setQtLoading] = useState(true);
@@ -127,23 +136,42 @@ const DailyWordCard = ({ demoData }: Props) => {
           </div>
         ) : data ? (
           <>
-            <div
-              className={`relative ${showExpand && !expanded ? "max-h-24 overflow-hidden" : ""} transition-all duration-300`}
+            <motion.div
+              initial={false}
+              animate={{ height: showExpand && !expanded ? 96 : "auto" }}
+              transition={{
+                duration: hasInteracted ? 0.3 : 0,
+                ease: "easeInOut",
+              }}
+              className="relative overflow-hidden"
             >
               <p
                 ref={contentRef}
                 className="text-gray-800 leading-relaxed whitespace-pre-line text-sm md:text-base font-light"
               >
-                {data.content}
+                {typeof data.content === "string"
+                  ? data.content.split("\\n").join("\n")
+                  : data.content}
               </p>
-              {showExpand && !expanded && (
-                <div className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-white to-transparent" />
-              )}
-            </div>
+              <AnimatePresence>
+                {showExpand && !expanded && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute bottom-0 left-0 right-0 h-16 bg-linear-to-t from-white to-transparent"
+                  />
+                )}
+              </AnimatePresence>
+            </motion.div>
 
             {showExpand && (
               <button
-                onClick={() => setExpanded(!expanded)}
+                onClick={() => {
+                  setHasInteracted(true);
+                  setExpanded(!expanded);
+                }}
                 className="w-full flex justify-center items-center gap-1 mt-3 text-xs font-semibold text-gray-400 hover:text-gray-600 transition-colors"
               >
                 {expanded ? (
@@ -159,19 +187,6 @@ const DailyWordCard = ({ demoData }: Props) => {
             )}
           </>
         ) : null}
-
-        <div className="mt-5 p-4 bg-gray-50 rounded-lg border-l-4 border-gray-300 italic">
-          {qtLoading ? (
-            <div className="animate-pulse space-y-1.5">
-              <div className="h-3.5 w-full bg-gray-200 rounded" />
-              <div className="h-3.5 w-4/5 bg-gray-200 rounded" />
-            </div>
-          ) : data ? (
-            <p className="text-gray-600 font-medium text-sm">
-              &ldquo;{data.keyVerse}&rdquo;
-            </p>
-          ) : null}
-        </div>
 
         {/* AI Insight Section */}
         {data && (
@@ -201,10 +216,12 @@ const DailyWordCard = ({ demoData }: Props) => {
                   </div>
                   <div>
                     <h4 className="text-sm font-bold text-gray-900 mb-1">
-                      묵상 포인트
+                      오늘의 묵상 질문
                     </h4>
                     <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                      {insight}
+                      {typeof insight === "string"
+                        ? insight.replace(/\\n/g, "\n")
+                        : insight}
                     </p>
                   </div>
                 </div>
@@ -212,6 +229,31 @@ const DailyWordCard = ({ demoData }: Props) => {
             )}
           </div>
         )}
+
+        <div className="mt-5 p-4 bg-gray-50 rounded-lg border-l-4 border-gray-300 italic flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          {qtLoading ? (
+            <div className="animate-pulse space-y-1.5 flex-1 w-full">
+              <div className="h-3.5 w-full bg-gray-200 rounded" />
+              <div className="h-3.5 w-4/5 bg-gray-200 rounded" />
+            </div>
+          ) : data ? (
+            <>
+              <p className="text-gray-600 font-medium text-sm flex-1">
+                &ldquo;{data.keyVerse}&rdquo;
+              </p>
+              <Link
+                href="/upload"
+                className="shrink-0 group relative overflow-hidden bg-gray-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 shadow-sm hover:shadow-md hover:bg-gray-800 transition-all duration-300 hover:-translate-y-0.5 not-italic"
+              >
+                <Pencil
+                  size={15}
+                  className="relative z-10 group-hover:rotate-12 transition-transform duration-300"
+                />
+                <span className="relative z-10">큐티 작성하러 가기</span>
+              </Link>
+            </>
+          ) : null}
+        </div>
       </div>
     </div>
   );
