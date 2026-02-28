@@ -64,12 +64,13 @@ export function getTodayStr(): string {
 }
 
 // 개발 중인 기능 등을 환경/상황에 따라 제어하기 위한 피처 플래그 함수
-export type FeatureFlag = "photoUpload" | "tags";
+export type FeatureFlag = "photoUpload" | "tags" | "rewardStats";
 
 export function isFeatureEnabled(feature: FeatureFlag): boolean {
   const featureConfig: Record<FeatureFlag, boolean> = {
     photoUpload: false, // 아직 개발 중이므로 false
     tags: false, // 아직 개발 중이므로 false
+    rewardStats: false, // 개발 중이므로 잠시 가림
   };
 
   return featureConfig[feature] ?? false;

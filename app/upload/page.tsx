@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
 import { isFeatureEnabled, sanitizeText } from "@/lib/utils";
 import { User } from "@supabase/supabase-js";
+import confetti from "canvas-confetti";
 import { motion } from "framer-motion";
 import {
   ChevronDown,
@@ -87,6 +88,44 @@ function UploadForm() {
       alert(state.message);
     }
   }, [state]);
+
+  useEffect(() => {
+    if (showReward) {
+      const duration = 3 * 1000;
+      const animationEnd = Date.now() + duration;
+      const defaults = {
+        startVelocity: 30,
+        spread: 360,
+        ticks: 60,
+        zIndex: 100,
+      };
+
+      const randomInRange = (min: number, max: number) =>
+        Math.random() * (max - min) + min;
+
+      const interval: ReturnType<typeof setInterval> = setInterval(function () {
+        const timeLeft = animationEnd - Date.now();
+
+        if (timeLeft <= 0) {
+          return clearInterval(interval);
+        }
+
+        const particleCount = 50 * (timeLeft / duration);
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+        });
+        confetti({
+          ...defaults,
+          particleCount,
+          origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+        });
+      }, 250);
+
+      return () => clearInterval(interval);
+    }
+  }, [showReward]);
 
   useEffect(() => {
     const init = async () => {
@@ -195,7 +234,8 @@ function UploadForm() {
     }
     setIsGeneratingInsight(true);
     const insight = await getDailyInsight(scripture);
-    setContent((prev) => (prev ? prev + "\n\n" + insight : insight));
+    const formattedInsight = `Q. ${insight}`;
+    setContent((prev) => [prev, formattedInsight].filter(Boolean).join("\n\n"));
     setIsGeneratingInsight(false);
   };
 
@@ -282,29 +322,32 @@ function UploadForm() {
                 오늘도 말씀을 통해 승리하셨군요!
               </p>
 
-              <div className="space-y-3 mb-8">
-                <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
-                  <span className="text-sm font-semibold text-gray-600">
-                    획득 경험치
-                  </span>
-                  <span className="text-sm font-bold text-blue-500">
-                    +50 EXP
-                  </span>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
-                  <span className="text-sm font-semibold text-gray-600">
-                    연속 묵상
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm font-bold text-orange-500">
-                      1일째
+              {/* TODO: Implement logic for EXP and Consecutive Days */}
+              {isFeatureEnabled("rewardStats") && (
+                <div className="space-y-3 mb-8">
+                  <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
+                    <span className="text-sm font-semibold text-gray-600">
+                      획득 경험치
                     </span>
-                    <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">
-                      HOT
+                    <span className="text-sm font-bold text-blue-500">
+                      +50 EXP
                     </span>
                   </div>
+                  <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
+                    <span className="text-sm font-semibold text-gray-600">
+                      연속 묵상
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-sm font-bold text-orange-500">
+                        1일째
+                      </span>
+                      <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">
+                        HOT
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <button
                 type="button"
@@ -366,7 +409,11 @@ function UploadForm() {
                 ref={quoteContentRef}
                 className="text-sm text-gray-600 leading-relaxed whitespace-pre-line italic"
               >
-                {dailyQt.content || "묵상 말씀을 읽어보세요."}
+                {dailyQt.content
+                  ? typeof dailyQt.content === "string"
+                    ? dailyQt.content.split("\\n").join("\n")
+                    : dailyQt.content
+                  : "묵상 말씀을 읽어보세요."}
               </p>
               {showQuoteExpand && !isQuoteExpanded && (
                 <div className="absolute bottom-0 left-0 right-0 h-10 bg-linear-to-t from-gray-50 to-transparent" />
