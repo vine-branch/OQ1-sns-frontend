@@ -91,7 +91,7 @@ export const Sidebar = () => {
           <span
             className={`text-base ${isActive("/upload") ? "font-bold" : "font-normal"}`}
           >
-            만들기
+            큐티 작성
           </span>
         </Link>
         <Link
