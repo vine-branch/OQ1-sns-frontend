@@ -1,6 +1,7 @@
 "use client";
 
 import { EVENT_CHALLENGE } from "@/app/constants";
+import { getNow } from "@/lib/utils";
 import { differenceInCalendarDays, parseISO } from "date-fns";
 import { Home, PlusSquare, User } from "lucide-react";
 import Link from "next/link";
@@ -124,7 +125,7 @@ export const Sidebar = () => {
               {(() => {
                 const dDay = differenceInCalendarDays(
                   parseISO(EVENT_CHALLENGE.startDate),
-                  new Date(),
+                  getNow(),
                 );
                 return dDay > 0
                   ? `D-${dDay}`

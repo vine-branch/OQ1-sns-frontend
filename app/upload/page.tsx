@@ -3,9 +3,10 @@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
-import { isFeatureEnabled, sanitizeText } from "@/lib/utils";
+import { getNow, isFeatureEnabled, sanitizeText } from "@/lib/utils";
 import { User } from "@supabase/supabase-js";
 import confetti from "canvas-confetti";
+import { format } from "date-fns";
 import { motion } from "framer-motion";
 import {
   ChevronDown,
@@ -156,11 +157,7 @@ function UploadForm() {
           setDailyQt(postData.daily_qt as any as DailyQt);
         }
       } else {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, "0");
-        const day = String(today.getDate()).padStart(2, "0");
-        const todayStr = `${year}-${month}-${day}`;
+        const todayStr = format(getNow(), "yyyy-MM-dd");
 
         let { data: qtData } = await supabase
           .from("oq_daily_qt")

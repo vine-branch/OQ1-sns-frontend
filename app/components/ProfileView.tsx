@@ -4,13 +4,26 @@ import {
   ResponsiveModal,
   ResponsiveModalBody,
 } from "@/components/ui/responsive-modal";
-import { createClient } from "@/lib/supabase/client";
-import { formatRelativeTime, getTodayStr, isFeatureEnabled } from "@/lib/utils";
+import {
+  formatDateToStr,
+  formatRelativeTime,
+  getDiffHours,
+  getNow,
+  getTodayStr,
+  isFeatureEnabled,
+  parseDate,
+  subtractDays,
+} from "@/lib/utils";
 import { motion } from "framer-motion";
 import { Award, Calendar, MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BADGES } from "../constants";
+import {
+  fetchRecentReactions,
+  fetchUserPosts,
+  fetchUserProfile,
+} from "../services/postService";
 import { Badge, Post } from "../types";
 import ActivityCalendar from "./ActivityCalendar";
 import FeedItem from "./FeedItem";
@@ -24,24 +37,6 @@ interface UserProfile {
   leader_name: string;
   enneagram_type: string;
   avatar_url?: string;
-}
-
-interface QtPost {
-  id: string;
-  created_at: string;
-  meditation: string;
-  is_public: boolean;
-  oq_daily_qt: {
-    qt_date: string;
-    bible_book: string;
-    chapter: number;
-    verse_from: number;
-    verse_to: number;
-    content: string;
-  };
-  likes: { count: number }[];
-  comments: { count: number }[];
-  liked_by_me: { user_id: string }[];
 }
 
 interface Reaction {
@@ -103,62 +98,22 @@ export default function ProfileView({
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const supabase = createClient();
 
       // 1. 프로필 조회
-      const { data: userData } = await supabase
-        .from("oq_users")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      const userData = await fetchUserProfile(userId);
 
       if (userData) {
-        setProfile({
-          ...userData,
-          avatar_url:
-            userData.avatar_url ||
-            "https://k.kakaocdn.net/dn/dpk9l1/btqmGhA2lKL/Oz0wDuJn1YV2DIn92f6DVK/img_640x640.jpg",
-        });
+        setProfile(userData);
       }
 
       // 2. 큐티 게시글 조회
-      let query = supabase
-        .from("oq_user_qt_answers")
-        .select(
-          `
-          id,
-          created_at,
-          meditation,
-          is_public,
-          oq_daily_qt!inner (
-            qt_date,
-            bible_book,
-            chapter,
-            verse_from,
-            verse_to,
-            content
-          ),
-          likes:oq_qt_likes(count),
-          comments:oq_qt_comments(count),
-          liked_by_me:oq_qt_likes(user_id)
-        `,
-          { count: "exact" },
-        )
-        .eq("user_id", userId);
+      const formattedPosts = await fetchUserPosts(userId, isOwnProfile);
 
-      if (!isOwnProfile) {
-        query = query.eq("is_public", true);
-      }
-
-      const { data: rawPostData, count } = await query.order("created_at", {
-        ascending: false,
-      });
-
-      if (rawPostData) {
-        const postData = rawPostData as unknown as QtPost[];
-
-        // 날짜 및 스트릭 계산
-        const dates = postData.map((post) => post.oq_daily_qt.qt_date);
+      if (formattedPosts) {
+        // 날짜 및 스트릭 계산용 데이터
+        const dates = formattedPosts.map((post) => {
+          return post.timestamp.split("T")[0];
+        });
         setActivityDates(dates);
 
         const calculateStreaks = (dateList: string[]) => {
@@ -170,12 +125,10 @@ export default function ProfileView({
           let maxStreak = 1;
           let runningStreak = 1;
           for (let i = 1; i < uniqueDates.length; i++) {
-            const currentD = new Date(uniqueDates[i - 1]); // descending, so this is newer
-            const prevD = new Date(uniqueDates[i]); // older
-            const diffHours =
-              (currentD.getTime() - prevD.getTime()) / (1000 * 3600);
+            const currentD = parseDate(uniqueDates[i - 1]);
+            const prevD = parseDate(uniqueDates[i]);
+            const diffHours = getDiffHours(currentD, prevD);
             if (diffHours >= 23 && diffHours <= 25) {
-              // exactly 1 day diff
               runningStreak++;
               maxStreak = Math.max(maxStreak, runningStreak);
             } else {
@@ -184,28 +137,24 @@ export default function ProfileView({
           }
 
           const todayStr = getTodayStr();
-          const today = new Date(todayStr); // local KST 00:00:00
-
-          const yesterday = new Date(today);
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+          const yesterdayStr = formatDateToStr(subtractDays(getNow(), 1));
 
           const dateSet = new Set(uniqueDates);
           let currentStreak = 0;
-          let checkDate = new Date(todayStr);
+          let checkDate = getNow();
 
           if (!dateSet.has(todayStr)) {
             if (!dateSet.has(yesterdayStr)) {
               return { current: 0, max: maxStreak };
             }
-            checkDate = new Date(yesterdayStr);
+            checkDate = subtractDays(getNow(), 1);
           }
 
           while (true) {
-            const dStr = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
+            const dStr = formatDateToStr(checkDate);
             if (dateSet.has(dStr)) {
               currentStreak++;
-              checkDate.setDate(checkDate.getDate() - 1);
+              checkDate = subtractDays(checkDate, 1);
             } else {
               break;
             }
@@ -220,22 +169,16 @@ export default function ProfileView({
         const { current: currentStreak, max: maxStreak } =
           calculateStreaks(dates);
 
-        const startOfToday = new Date().setHours(0, 0, 0, 0);
-        const doneToday = postData.some(
-          (post) => new Date(post.created_at).getTime() >= startOfToday,
-        );
+        const doneToday = formattedPosts.some((post) => post.user.hasDoneToday);
         setHasDoneToday(doneToday);
 
-        // Count early birds & day/night preference
         let earlyCount = 0;
         let dayCount = 0;
         let nightCount = 0;
-        postData.forEach((p) => {
-          const d = new Date(p.created_at);
+        formattedPosts.forEach((p) => {
+          const d = parseDate(p.timestamp);
           const hour = d.getHours();
           if (hour < 6) earlyCount++;
-
-          // Day: 06:00~18:00, Night: 18:00~06:00
           if (hour >= 6 && hour < 18) {
             dayCount++;
           } else {
@@ -247,91 +190,30 @@ export default function ProfileView({
 
         setStats((prev) => ({
           ...prev,
-          postCount: count || 0,
+          postCount: formattedPosts.length,
           streak: currentStreak,
           maxStreak: maxStreak,
           earlyBirdCount: earlyCount,
           preferredType: preferredType,
         }));
 
-        const formattedPosts: Post[] = postData.map((post) => ({
-          id: post.id,
+        const postsWithProfile = formattedPosts.map((post) => ({
+          ...post,
           user: {
-            id: userId,
+            ...post.user,
             name: userData?.user_name || "사용자",
-            avatar:
-              userData?.avatar_url ||
-              "https://k.kakaocdn.net/dn/dpk9l1/btqmGhA2lKL/Oz0wDuJn1YV2DIn92f6DVK/img_640x640.jpg",
-            type: preferredType,
+            avatar: userData?.avatar_url || post.user.avatar,
+            type: preferredType as "Morning" | "Night" | "Lunch" | "Anytime",
             streak: currentStreak,
-            group: userData ? `청년 ${userData.guk_no}국` : "청년부",
-            level: 1,
-            currentExp: 0,
-            maxExp: 100,
-            hasDoneToday: doneToday,
           },
-          timestamp: post.created_at,
-          scriptureRef: `${post.oq_daily_qt.bible_book} ${post.oq_daily_qt.chapter}:${post.oq_daily_qt.verse_from}-${post.oq_daily_qt.verse_to}`,
-          scriptureContent: post.oq_daily_qt.content,
-          scriptureTitle: `${post.oq_daily_qt.bible_book} ${post.oq_daily_qt.chapter}장`,
-          content: post.meditation,
-          amenCount: (post.likes && post.likes[0]?.count) || 0,
-          commentCount: (post.comments && post.comments[0]?.count) || 0,
-          isLiked: (post.liked_by_me && post.liked_by_me.length > 0) || false,
-          isAnonymous: !post.is_public,
-          tags: [],
-          imageUrl: undefined,
-        }));
-        setPosts(formattedPosts);
+        })) as Post[];
 
-        if (isOwnProfile && postData.length > 0) {
-          const postIds = postData.map((p) => p.id);
+        setPosts(postsWithProfile);
 
-          const { data: latestLikes } = await supabase
-            .from("oq_qt_likes")
-            .select("id, created_at, user:oq_users!inner(user_name)")
-            .in("answer_id", postIds)
-            .neq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(3);
-
-          const { data: latestComments } = await supabase
-            .from("oq_qt_comments")
-            .select("id, created_at, user:oq_users!inner(user_name)")
-            .in("answer_id", postIds)
-            .neq("user_id", userId)
-            .order("created_at", { ascending: false })
-            .limit(3);
-
-          const allReactions: Reaction[] = [];
-          if (latestLikes) {
-            latestLikes.forEach((l) => {
-              const u = l.user as unknown as { user_name: string };
-              allReactions.push({
-                id: l.id,
-                type: "like",
-                user_name: u?.user_name,
-                created_at: l.created_at,
-              });
-            });
-          }
-          if (latestComments) {
-            latestComments.forEach((c) => {
-              const u = c.user as unknown as { user_name: string };
-              allReactions.push({
-                id: c.id,
-                type: "comment",
-                user_name: u?.user_name,
-                created_at: c.created_at,
-              });
-            });
-          }
-          allReactions.sort(
-            (a, b) =>
-              new Date(b.created_at).getTime() -
-              new Date(a.created_at).getTime(),
-          );
-          setReactions(allReactions.slice(0, 3));
+        if (isOwnProfile && formattedPosts.length > 0) {
+          const postIds = formattedPosts.map((p) => p.id);
+          const recentReactions = await fetchRecentReactions(userId, postIds);
+          setReactions(recentReactions);
         }
       }
       setLoading(false);
@@ -360,7 +242,6 @@ export default function ProfileView({
 
   const expPercentage = Math.min((stats.currentExp / stats.maxExp) * 100, 100);
 
-  // Calculate Badges
   const computedBadges: Badge[] = [
     { ...BADGES[0], acquired: stats.maxStreak >= 3 },
     { ...BADGES[1], acquired: stats.maxStreak >= 7 },
@@ -370,7 +251,6 @@ export default function ProfileView({
 
   return (
     <div className="w-full">
-      {/* ── Ambient Floating Particles ── */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-10">
         <motion.div
           className="absolute w-64 h-64 rounded-full bg-purple-200/15 blur-3xl"
@@ -395,12 +275,10 @@ export default function ProfileView({
         />
       </div>
 
-      {/* Header / Profile Section */}
       <motion.div
         {...fadeRise(0)}
         className="bg-white p-6 md:rounded-lg md:border border-gray-200 mb-6 relative"
       >
-        {/* 데스크톱 상단 메뉴 액션 (Slot) */}
         {children && (
           <div className="absolute top-4 right-4 hidden md:block z-20">
             {children}
@@ -589,7 +467,7 @@ export default function ProfileView({
                 ? "내 큐티 묵상"
                 : `${profile.user_name}님의 큐티 묵상`}
             </h2>
-            <div className="space-y-0">
+            <div className="space-y-4">
               {posts.length > 0 ? (
                 posts.map((post, index) => (
                   <motion.div key={post.id} {...feedItemTransition(index)}>
@@ -611,7 +489,6 @@ export default function ProfileView({
         <div className="space-y-6">
           {isOwnProfile && (
             <>
-              {/* Gradient Card: 오늘의 응원 */}
               <motion.div
                 {...fadeRise(0.2)}
                 className="bg-linear-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-lg shadow-md text-white relative overflow-hidden"
@@ -657,7 +534,6 @@ export default function ProfileView({
                 </div>
               </motion.div>
 
-              {/* 청년부 현황 */}
               {isFeatureEnabled("photoUpload") && (
                 <div className="bg-white p-5 rounded-lg border border-gray-200">
                   <div className="flex items-center gap-2 mb-4">
@@ -686,7 +562,6 @@ export default function ProfileView({
             </>
           )}
 
-          {/* 소속 정보 (상시 노출) */}
           <motion.div
             {...fadeRise(0.3)}
             className="bg-white p-5 rounded-lg border border-gray-200"

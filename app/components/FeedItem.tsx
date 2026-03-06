@@ -5,7 +5,11 @@ import {
   ResponsiveModalBody,
 } from "@/components/ui/responsive-modal";
 import { createClient } from "@/lib/supabase/client";
-import { formatRelativeTime, sanitizeText } from "@/lib/utils";
+import {
+  formatRelativeTime,
+  isFeatureEnabled,
+  sanitizeText,
+} from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
@@ -379,9 +383,12 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
             >
               <MessageCircle size={24} strokeWidth={2} />
             </button>
-            <button className="text-black hover:text-gray-600">
-              <Send size={24} strokeWidth={2} />
-            </button>
+            {/* TODO: 공유 기능 개발 필요 */}
+            {isFeatureEnabled("sharePost") && (
+              <button className="text-black hover:text-gray-600">
+                <Send size={24} strokeWidth={2} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -550,20 +557,20 @@ const FeedItem: React.FC<FeedItemProps> = ({ post, currentUserId }) => {
           title={post.scriptureTitle || "오늘의 말씀"}
         >
           <ResponsiveModalBody className="px-6 py-6">
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-start">
               {/* Decorative Icon */}
               <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center mb-2">
                 <span className="text-xl">📖</span>
               </div>
 
               {/* Reference */}
-              <h3 className="text-lg font-bold text-gray-900 mb-2 text-center">
+              <h3 className="text-lg font-bold text-gray-900 mb-2 text-left">
                 {post.scriptureRef}
               </h3>
 
               {/* Content Card */}
               <div className="w-full bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px] md:text-sm font-medium text-center">
+                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-[13px] md:text-sm font-medium text-left">
                   {post.scriptureContent || "말씀 내용을 불러올 수 없습니다."}
                 </p>
               </div>

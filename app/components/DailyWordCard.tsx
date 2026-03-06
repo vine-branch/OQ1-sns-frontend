@@ -1,6 +1,6 @@
 "use client";
 
-import { createClient } from "@/lib/supabase/client";
+import { formatDate } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BookOpen,
@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { getDailyInsight } from "../services/aiService";
+import { fetchTodayQt } from "../services/postService";
 import type { DailyWord } from "../types";
 
 interface Props {
@@ -31,35 +32,14 @@ const DailyWordCard = ({ demoData }: Props) => {
   const [dailyQt, setDailyQt] = useState<any>(null);
 
   useEffect(() => {
-    const fetchTodayQt = async () => {
-      const supabase = createClient();
-      const today = new Date();
-      const year = today.getFullYear();
-      const month = String(today.getMonth() + 1).padStart(2, "0");
-      const day = String(today.getDate()).padStart(2, "0");
-      const todayStr = `${year}-${month}-${day}`;
-
-      let { data: qtData } = await supabase
-        .from("oq_daily_qt")
-        .select("*")
-        .eq("qt_date", todayStr)
-        .single();
-
-      if (!qtData) {
-        const { data: latestQt } = await supabase
-          .from("oq_daily_qt")
-          .select("*")
-          .order("qt_date", { ascending: false })
-          .limit(1)
-          .single();
-        qtData = latestQt;
-      }
+    const initDailyWord = async () => {
+      const qtData = await fetchTodayQt();
       if (qtData) {
         setDailyQt(qtData);
       }
       setQtLoading(false);
     };
-    fetchTodayQt();
+    initDailyWord();
   }, []);
 
   // 콘텐츠가 4줄(96px) 초과일 때만 더보기 표시
@@ -84,11 +64,7 @@ const DailyWordCard = ({ demoData }: Props) => {
 
   const data = dailyQt
     ? {
-        date: new Date(dailyQt.qt_date).toLocaleDateString("ko-KR", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
+        date: formatDate(dailyQt.qt_date, "yyyy년 M월 d일"),
         reference: `${dailyQt.bible_book} ${dailyQt.chapter}:${dailyQt.verse_from}-${dailyQt.verse_to}`,
         content: dailyQt.content,
         keyVerse: "오늘의 묵상 본문을 읽고 은혜를 나누어보세요.",
@@ -149,9 +125,7 @@ const DailyWordCard = ({ demoData }: Props) => {
                 ref={contentRef}
                 className="text-gray-800 leading-relaxed whitespace-pre-line text-sm md:text-base font-light"
               >
-                {typeof data.content === "string"
-                  ? data.content.split("\\n").join("\n")
-                  : data.content}
+                {data.content}
               </p>
               <AnimatePresence>
                 {showExpand && !expanded && (

@@ -1,5 +1,17 @@
 "use client";
 
+import {
+  addMonthsToDate,
+  formatDateToStr,
+  getDayOfMonth,
+  getDayOfWeek,
+  getEndOfMonth,
+  getNow,
+  getStartOfMonth,
+  isSameDayCheck,
+  parseDate,
+  subMonthsFromDate,
+} from "@/lib/utils";
 import { Calendar, ChevronLeft, ChevronRight, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -14,16 +26,16 @@ const ActivityCalendar = ({
   completedDates = [],
   streak = 0,
 }: ActivityCalendarProps) => {
-  const [viewDate, setViewDate] = useState(() => new Date());
+  const [viewDate, setViewDate] = useState(() => getNow());
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
 
   const activitySet = useMemo(() => new Set(completedDates), [completedDates]);
 
-  const firstDay = new Date(year, month, 1);
-  const lastDay = new Date(year, month + 1, 0);
-  const startWeekday = firstDay.getDay();
-  const daysInMonth = lastDay.getDate();
+  const firstDay = getStartOfMonth(viewDate);
+  const lastDay = getEndOfMonth(viewDate);
+  const startWeekday = getDayOfWeek(firstDay);
+  const daysInMonth = getDayOfMonth(lastDay);
 
   const weeks: (number | null)[][] = [];
   let week: (number | null)[] = [];
@@ -41,9 +53,7 @@ const ActivityCalendar = ({
   }
 
   const formatDate = (y: number, m: number, d: number) => {
-    const mm = m + 1 < 10 ? `0${m + 1}` : `${m + 1}`;
-    const dd = d < 10 ? `0${d}` : `${d}`;
-    return `${y}-${mm}-${dd}`;
+    return formatDateToStr(parseDate(`${y}-${m + 1}-${d}`));
   };
 
   const getIntensity = (day: number) => {
@@ -51,10 +61,8 @@ const ActivityCalendar = ({
     return activitySet.has(dateStr) ? 1 : 0;
   };
 
-  const goPrev = () =>
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() - 1));
-  const goNext = () =>
-    setViewDate((d) => new Date(d.getFullYear(), d.getMonth() + 1));
+  const goPrev = () => setViewDate((d) => subMonthsFromDate(d, 1));
+  const goNext = () => setViewDate((d) => addMonthsToDate(d, 1));
   const title = `${year}년 ${month + 1}월`;
 
   let totalDaysThisMonth = 0;
@@ -111,10 +119,10 @@ const ActivityCalendar = ({
             return <div key={`empty-${idx}`} className="min-w-0" />;
           }
           const intensity = getIntensity(day);
-          const isToday =
-            day === new Date().getDate() &&
-            month === new Date().getMonth() &&
-            year === new Date().getFullYear();
+          const isToday = isSameDayCheck(
+            parseDate(`${year}-${month + 1}-${day}`),
+            getNow(),
+          );
 
           const bgClass =
             intensity === 0

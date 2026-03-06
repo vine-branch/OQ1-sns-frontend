@@ -210,7 +210,7 @@ export default function MyPage() {
             <h2 className="font-bold text-gray-900 text-sm mb-4 px-1">
               내 큐티 묵상
             </h2>
-            <div className="space-y-0">
+            <div className="space-y-4">
               {MOCK_MY_POSTS.map((post) => (
                 <FeedItem key={post.id} post={post} currentUserId={null} />
               ))}

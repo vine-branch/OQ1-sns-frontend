@@ -1,4 +1,4 @@
-import { sanitizeText } from "@/lib/utils";
+import { getNow, parseDate, sanitizeText, subtractYears } from "@/lib/utils";
 import { z } from "zod";
 
 export const signupSchema = z.object({
@@ -17,13 +17,8 @@ export const signupSchema = z.object({
     .string()
     .min(1, "생년월일을 선택해 주세요.")
     .refine((val) => {
-      const birth = new Date(val);
-      const today = new Date();
-      const cutoff = new Date(
-        today.getFullYear() - 18,
-        today.getMonth(),
-        today.getDate(),
-      );
+      const birth = parseDate(val);
+      const cutoff = subtractYears(getNow(), 18);
       return birth <= cutoff;
     }, "청년들만 가입할 수 있습니다."),
   leader_name: z

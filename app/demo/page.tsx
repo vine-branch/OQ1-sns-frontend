@@ -41,7 +41,7 @@ export default function HomePage() {
         </div>
 
         {/* Feed */}
-        <div className="space-y-0 md:space-y-6">
+        <div className="space-y-4">
           {filteredPosts.map((post) => (
             <FeedItem key={post.id} post={post} currentUserId={null} />
           ))}

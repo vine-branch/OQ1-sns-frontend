@@ -7,36 +7,8 @@ import { useEffect, useState } from "react";
 import DailyWordCard from "./components/DailyWordCard";
 import FeedItem from "./components/FeedItem";
 import { MobileHeader } from "./components/MobileHeader";
+import { fetchPosts } from "./services/postService";
 import { FeedFilter, Post } from "./types";
-
-interface QtAnswerRow {
-  id: string;
-  meditation: string;
-  created_at: string;
-  is_public: boolean;
-  user_id: string;
-  answer_type: string;
-  user: {
-    id: string;
-    user_name: string;
-    guk_no: number;
-    avatar_url?: string;
-    enneagram_type?: string;
-  } | null;
-  daily_qt: {
-    bible_book: string;
-    chapter: number;
-    verse_from: number;
-    verse_to: number;
-    content: string;
-  };
-  likes: {
-    user_id: string;
-    user: { user_name: string; avatar_url?: string };
-  }[];
-  comments: { count: number }[];
-  liked_by_me: { user_id: string }[];
-}
 
 // ─── Animation Variants ────────────────────────────────────────────────────
 
@@ -103,41 +75,13 @@ export default function HomePage() {
   >(null);
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    const initPage = async () => {
       const supabase = createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
       setCurrentUserId(user?.id || null);
 
-      const { data, error } = await supabase
-        .from("oq_user_qt_answers")
-        .select(
-          `
-          id,
-          meditation,
-          created_at,
-          is_public,
-          user_id,
-          answer_type,
-          user:oq_users!user_id (
-            id, user_name, guk_no, avatar_url, enneagram_type
-          ),
-          daily_qt:oq_daily_qt (
-            bible_book, chapter, verse_from, verse_to, content
-          ),
-          likes:oq_qt_likes(
-            user_id,
-            user:oq_users!user_id(user_name, avatar_url)
-          ),
-          comments:oq_qt_comments(count),
-          liked_by_me:oq_qt_likes(user_id)
-        `,
-        )
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
-
-      // Fetch current user's enneagram type
       if (user) {
         const { data: userData } = await supabase
           .from("oq_users")
@@ -149,83 +93,12 @@ export default function HomePage() {
         }
       }
 
-      // Fetch users who have had any activity today (KST)
-      const startOfToday = new Date();
-      startOfToday.setHours(0, 0, 0, 0);
-
-      const { data: activeUsersToday } = await supabase
-        .from("oq_user_qt_answers")
-        .select("user_id, created_at") // Select created_at to check for today's activity
-        .gte("created_at", startOfToday.toISOString());
-
-      const activeUserIds = new Set(
-        activeUsersToday?.map((item) => item.user_id) || [],
-      );
-
-      if (error) {
-        console.error("Error fetching posts:", error);
-      }
-
-      if (data) {
-        // Transform DB data to Post type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mappedPosts: Post[] = (data as any[]).map(
-          (item: QtAnswerRow) => ({
-            id: item.id,
-            user: {
-              id: item.user_id,
-              name: item.user?.user_name || "알 수 없음",
-              avatar:
-                item.user?.avatar_url ||
-                `https://picsum.photos/seed/${item.user_id}/100/100`,
-              type: "Anytime",
-              streak: 0,
-              group: item.user ? `${item.user.guk_no}국` : "미지정",
-              level: 1,
-              currentExp: 0,
-              maxExp: 100,
-              hasDoneToday: activeUserIds.has(item.user_id),
-              enneagramType: item.user?.enneagram_type,
-            },
-            content: item.meditation,
-            scriptureRef: item.daily_qt
-              ? `${item.daily_qt.bible_book} ${item.daily_qt.chapter}:${item.daily_qt.verse_from}-${item.daily_qt.verse_to}`
-              : "말씀 정보 없음",
-            scriptureContent: item.daily_qt?.content,
-            scriptureTitle: item.daily_qt
-              ? `${item.daily_qt.bible_book} ${item.daily_qt.chapter}장`
-              : undefined,
-            amenCount: item.likes?.length || 0,
-            likedUsers:
-              item.likes?.map(
-                (l: {
-                  user_id: string;
-                  user?: { user_name: string; avatar_url?: string };
-                }) => ({
-                  userId: l.user_id,
-                  userName: l.user?.user_name || "알 수 없음",
-                  avatarUrl: l.user?.avatar_url,
-                }),
-              ) || [],
-            commentCount: (item.comments && item.comments[0]?.count) || 0,
-            isLiked:
-              (item.liked_by_me &&
-                item.liked_by_me.some(
-                  (like: { user_id: string }) => like.user_id === user?.id,
-                )) ||
-              false,
-            timestamp: item.created_at,
-            tags: [], // Tags not implemented in DB yet
-            isAnonymous: !item.is_public,
-            imageUrl: undefined,
-          }),
-        );
-        setPosts(mappedPosts);
-      }
+      const mappedPosts = await fetchPosts(user?.id || null);
+      setPosts(mappedPosts);
       setLoading(false);
     };
 
-    fetchPosts();
+    initPage();
   }, []);
 
   const filteredPosts = posts.filter((post) => {
