@@ -4,7 +4,6 @@ export interface OqUser {
   user_name: string;
   guk_no: number;
   birth_date: string; // YYYY-MM-DD
-  leader_name: string;
   enneagram_type: string;
   reg_date?: string;
   update_date?: string;
@@ -17,11 +16,12 @@ export interface User {
   type: "Morning" | "Night" | "Lunch" | "Anytime";
   streak: number;
   group: string;
-  level: number; // Added
-  currentExp: number; // Added
-  maxExp: number; // Added
+  level: number;
+  currentExp: number;
+  maxExp: number;
   hasDoneToday?: boolean;
   enneagramType?: string;
+  badges?: string[]; // 획득한 뱃지 아이콘 배열 (예: ["🌱", "🔥"])
 }
 
 export interface Post {

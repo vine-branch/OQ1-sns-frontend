@@ -65,7 +65,7 @@ export async function GET(request: Request) {
 
     const { data: profile } = await supabaseAdmin
       .from("oq_users")
-      .select("birth_date, leader_name") // 필수 정보 조회
+      .select("birth_date") // 필수 정보 조회
       .eq("id", user.id)
       .single();
 
@@ -73,8 +73,8 @@ export async function GET(request: Request) {
 
     // Case A: 신규 유저 판단 (프로필이 없거나, 필수 정보가 비어있음)
     // 트리거가 oq_users 행을 자동 생성하므로, 행 존재 여부만으로는 판단 불가!
-    // birth_date나 leader_name이 없으면 아직 가입 절차를 완료하지 않은 것으로 판단
-    const isNewUser = !profile || !profile.birth_date || !profile.leader_name;
+    // birth_date가 없으면 아직 가입 절차를 완료하지 않은 것으로 판단
+    const isNewUser = !profile || !profile.birth_date;
 
     if (isNewUser) {
       return NextResponse.redirect(`${origin}/signup?from=kakao`);

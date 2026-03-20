@@ -7,7 +7,6 @@ export interface ProfileData {
   user_name: string;
   guk_no: number;
   birth_date: string;
-  leader_name: string;
   enneagram_type: string | null;
   avatar_url: string | null;
 }
@@ -29,7 +28,7 @@ export function useProfile() {
     }
     const { data: row, error: rowError } = await supabase
       .from("oq_users")
-      .select("user_name, guk_no, birth_date, leader_name, enneagram_type")
+      .select("user_name, guk_no, birth_date, enneagram_type")
       .eq("id", user.id)
       .single();
 
@@ -59,7 +58,6 @@ export function useProfile() {
       user_name: row.user_name ?? "",
       guk_no: row.guk_no ?? 1,
       birth_date: birth,
-      leader_name: row.leader_name ?? "",
       enneagram_type: row.enneagram_type ?? null,
       avatar_url: avatarUrl,
     });
@@ -68,7 +66,6 @@ export function useProfile() {
       user_name: row.user_name ?? "",
       guk_no: row.guk_no ?? 1,
       birth_date: birth,
-      leader_name: row.leader_name ?? "",
       enneagram_type: row.enneagram_type ?? null,
       avatar_url: avatarUrl,
     };
