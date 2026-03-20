@@ -1,5 +1,6 @@
 "use client";
 
+import { useAlert } from "@/app/components/AlertProvider";
 import {
   useKakaoProfile,
   useSignupFormDefaults,
@@ -15,27 +16,64 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Image from "next/image";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { AnimatePresence, motion } from "framer-motion";
+import abrahamImg from "@/assets/images/abraham.png";
+import davidImg from "@/assets/images/david.png";
+import isaacImg from "@/assets/images/isaac.png";
+import johnImg from "@/assets/images/john.png";
+import josephImg from "@/assets/images/joseph.png";
+import mosesImg from "@/assets/images/moses.png";
+import ruthImg from "@/assets/images/ruth.png";
+import samuelImg from "@/assets/images/samuel.png";
+import solomonImg from "@/assets/images/solomon.png";
+import Image, { type StaticImageData } from "next/image";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { Controller, useForm, useWatch } from "react-hook-form";
+
+const ENNEAGRAM_INFO: Record<string, { name: string; description: string; image: StaticImageData }> = {
+  "1": { name: "모세", description: "완벽을 추구하는 이상주의자", image: mosesImg },
+  "2": { name: "룻", description: "사랑으로 섬기는 돕는 사람", image: ruthImg },
+  "3": { name: "사무엘", description: "목표를 향해 달려가는 성취자", image: samuelImg },
+  "4": { name: "세례 요한", description: "진정성을 추구하는 개인주의자", image: johnImg },
+  "5": { name: "요셉", description: "지혜롭게 관찰하는 탐구자", image: josephImg },
+  "6": { name: "이삭", description: "신실하게 따르는 충성가", image: isaacImg },
+  "7": { name: "솔로몬", description: "기쁨을 나누는 열정가", image: solomonImg },
+  "8": { name: "다윗", description: "담대하게 도전하는 지도자", image: davidImg },
+  "9": { name: "아브라함", description: "평화를 이루는 중재자", image: abrahamImg },
+};
+
+const fadeRise = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.45, ease: "easeOut" as const, delay },
+});
 
 const SIGNUP_FORM_ID = "signup-form";
 
 const ENNEAGRAM_OPTIONS = [
   { value: "", label: "에니어그램 유형 선택" },
-  { value: "1", label: "1번 - 완벽주의자" },
-  { value: "2", label: "2번 - 돕는 사람" },
-  { value: "3", label: "3번 - 성취하는 사람" },
-  { value: "4", label: "4번 - 개인주의자" },
-  { value: "5", label: "5번 - 탐구자" },
-  { value: "6", label: "6번 - 충성스러운 사람" },
-  { value: "7", label: "7번 - 열정적인 사람" },
-  { value: "8", label: "8번 - 도전자" },
-  { value: "9", label: "9번 - 중재자" },
+  { value: "1w9", label: "1w9 - 모세 (이상주의자)" }, // 완벽주의자 + 중재자 날개
+  { value: "1w2", label: "1w2 - 모세 (옹호자)" }, // 완벽주의자 + 돕는 사람 날개
+  { value: "2w1", label: "2w1 - 룻 (봉사자)" }, // 돕는 사람 + 완벽주의자 날개
+  { value: "2w3", label: "2w3 - 룻 (접대자)" }, // 돕는 사람 + 성취자 날개
+  { value: "3w2", label: "3w2 - 사무엘 (매력가)" }, // 성취자 + 돕는 사람 날개
+  { value: "3w4", label: "3w4 - 사무엘 (전문가)" }, // 성취자 + 개인주의자 날개
+  { value: "4w3", label: "4w3 - 세례 요한 (귀족)" }, // 개인주의자 + 성취자 날개
+  { value: "4w5", label: "4w5 - 세례 요한 (보헤미안)" }, // 개인주의자 + 탐구자 날개
+  { value: "5w4", label: "5w4 - 요셉 (상징주의자)" }, // 탐구자 + 개인주의자 날개
+  { value: "5w6", label: "5w6 - 요셉 (문제해결자)" }, // 탐구자 + 충성가 날개
+  { value: "6w5", label: "6w5 - 이삭 (수호자)" }, // 충성가 + 탐구자 날개
+  { value: "6w7", label: "6w7 - 이삭 (동반자)" }, // 충성가 + 열정가 날개
+  { value: "7w6", label: "7w6 - 솔로몬 (연예인)" }, // 열정가 + 충성가 날개
+  { value: "7w8", label: "7w8 - 솔로몬 (현실주의자)" }, // 열정가 + 도전자 날개
+  { value: "8w7", label: "8w7 - 다윗 (독립가)" }, // 도전자 + 열정가 날개
+  { value: "8w9", label: "8w9 - 다윗 (곰)" }, // 도전자 + 중재자 날개
+  { value: "9w8", label: "9w8 - 아브라함 (심판관)" }, // 중재자 + 도전자 날개
+  { value: "9w1", label: "9w1 - 아브라함 (꿈꾸는 자)" }, // 중재자 + 완벽주의자 날개
 ];
 
 const inputErrorClass =
@@ -43,7 +81,10 @@ const inputErrorClass =
 
 function SignupContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const showAlert = useAlert();
   const fromKakao = searchParams.get("from") === "kakao";
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const {
     userName: kakaoUserName,
     avatarUrl: kakaoAvatarUrl,
@@ -55,75 +96,265 @@ function SignupContent() {
     kakaoUserName,
   );
 
+  useEffect(() => {
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        setIsAuthenticated(false);
+        return;
+      }
+      // 가입 완료된 사용자는 홈으로 리다이렉트
+      const { data: profile } = await supabase
+        .from("oq_users")
+        .select("birth_date")
+        .eq("id", user.id)
+        .single();
+      if (profile?.birth_date) {
+        // router.replace("/");
+        // return;
+      }
+      setIsAuthenticated(true);
+    };
+    checkAuth();
+  }, [router]);
+
+  const handleKakaoLogin = async () => {
+    try {
+      // OAuth 후 유실되는 쿼리 파라미터를 세션스토리지에 저장
+      const enneagramType = searchParams.get("enneagram-type");
+      if (enneagramType) {
+        sessionStorage.setItem("signup:enneagram-type", enneagramType);
+      }
+      const supabase = createClient();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "kakao",
+        options: {
+          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
+        },
+      });
+      if (error) {
+        console.error("Kakao signIn error:", error);
+        showAlert("로그인에 실패했습니다.");
+        return;
+      }
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (e) {
+      console.error("Kakao login error:", e);
+      showAlert("로그인 중 오류가 발생했습니다.");
+    }
+  };
+
+  // 세션 확인 중
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-fafafa flex flex-col items-center justify-center px-4 py-12 animate-pulse">
+        <div className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg p-8 mb-4">
+          <div className="h-7 w-16 bg-gray-100 rounded mx-auto mb-2" />
+          <div className="h-3 w-28 bg-gray-100 rounded mx-auto mb-8" />
+          <div className="space-y-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="h-3 w-12 bg-gray-100 rounded" />
+                <div className="h-10 w-full bg-gray-50 rounded-md border border-gray-200" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 미인증: 카카오 로그인 유도
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-fafafa flex flex-col items-center justify-center px-4 py-12">
+        <motion.div
+          {...fadeRise(0)}
+          className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg p-8 mb-4"
+        >
+          <h1 className="text-2xl font-bold italic font-serif tracking-tight text-center text-gray-900">
+            OQ1
+          </h1>
+          <p className="text-center text-sm font-medium text-gray-600 mt-1">
+            오늘 큐티 완료
+          </p>
+          <p className="text-center text-xs text-gray-500 mt-2 mb-8">
+            회원가입을 위해 먼저 카카오 로그인이 필요합니다.
+          </p>
+          <button
+            type="button"
+            onClick={handleKakaoLogin}
+            className="w-full py-3 flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FADA0A] active:bg-[#E6D000] text-[#191919] text-sm font-semibold rounded-md transition-colors"
+          >
+            <svg
+              className="w-5 h-5 shrink-0"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+            >
+              <path d="M12 3c5.799 0 10.5 3.664 10.5 8.185 0 4.52-4.701 8.184-10.5 8.184a13.5 13.5 0 0 1-1.727-.11l-4.408 2.883c-.501.265-.678.236-.472-.413l.892-3.678c-2.88-1.46-4.785-3.99-4.785-6.966C1.5 6.665 6.201 3 12 3Z" />
+            </svg>
+            카카오로 시작하기
+          </button>
+          <p className="text-center text-xs text-gray-500 mt-4">
+            카카오 계정 하나로 로그인·가입됩니다.
+          </p>
+        </motion.div>
+
+      </div>
+    );
+  }
+
+  // 인증됨: 회원가입 폼
+  const enneagramType =
+    searchParams.get("enneagram-type") ||
+    sessionStorage.getItem("signup:enneagram-type") ||
+    undefined;
+  const hasPresetType = !!enneagramType;
+
   return (
     <div className="min-h-screen bg-fafafa flex flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg p-8 mb-4">
-        <h1 className="text-2xl font-bold italic font-serif tracking-tight text-center text-gray-900">
-          OQ1
-        </h1>
-        <p className="text-center text-sm font-medium text-gray-600 mt-1">
-          오늘 큐티 완료
-        </p>
-        <p className="text-center text-xs text-gray-500 mt-2 mb-6">
-          매일 QT를 나누고 사람을 연결하는 플랫폼
-        </p>
-        {fromKakao ? (
-          <div className="flex flex-col items-center gap-3 mb-6">
-            {kakaoAvatarUrl ? (
-              <div className="relative w-14 h-14 rounded-full overflow-hidden border-2 border-gray-200 shrink-0">
-                <Image
-                  src={kakaoAvatarUrl}
-                  alt="프로필"
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              </div>
-            ) : null}
-            <p className="text-sm text-gray-700 text-center bg-gray-50 rounded-md py-3 px-3">
-              한 단계만 남았어요. 아래 항목을 입력하면 가입이 완료됩니다.
+      {hasPresetType && <EnneagramHero typeValue={enneagramType} />}
+
+      <motion.div
+        {...fadeRise(hasPresetType ? 0.15 : 0)}
+        className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg p-8 mb-4"
+      >
+        {!hasPresetType && (
+          <>
+            <h1 className="text-2xl font-bold italic font-serif tracking-tight text-center text-gray-900">
+              OQ1
+            </h1>
+            <p className="text-center text-sm font-medium text-gray-600 mt-1">
+              오늘 큐티 완료
             </p>
-          </div>
-        ) : (
-          <p className="text-sm text-gray-500 text-center mb-6">회원가입</p>
+            <p className="text-center text-xs text-gray-500 mt-2 mb-6">
+              매일 QT를 나누고 사람을 연결하는 플랫폼
+            </p>
+          </>
         )}
+        <p className="text-sm text-gray-700 text-center bg-gray-50 rounded-md py-3 px-3 mb-6">
+          {hasPresetType
+            ? "아래 정보만 입력하면 가입이 완료됩니다."
+            : "한 단계만 남았어요. 아래 항목을 입력하면 가입이 완료됩니다."}
+        </p>
 
         <SignupForm
+          kakaoAvatarUrl={kakaoAvatarUrl}
           key={formKey}
           formDefaultUserName={formDefaultUserName}
-          fromKakao={fromKakao}
+          fromKakao={true}
+          defaultEnneagramType={enneagramType}
         />
-      </div>
+      </motion.div>
 
-      {fromKakao ? null : (
-        <div className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg py-5 px-4 text-center">
-          <p className="text-sm text-gray-700">
-            이미 계정이 있으신가요?{" "}
-            <Link
-              href="/login"
-              className="font-semibold text-gray-900 hover:underline"
-            >
-              로그인
-            </Link>
-          </p>
-        </div>
-      )}
-
-      <p className="mt-6 text-xs text-gray-400">
-        <Link href="/" className="hover:text-gray-600">
-          ← 홈으로
-        </Link>
-      </p>
     </div>
   );
+}
+
+function EnneagramHero({ typeValue }: { typeValue?: string }) {
+  const mainType = typeValue?.[0];
+  const info = mainType ? ENNEAGRAM_INFO[mainType] : undefined;
+
+  if (!info) return null;
+
+  const imageSrc = info.image;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg p-6 mb-4 text-center"
+    >
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">
+        Your Type
+      </p>
+      <div className="relative w-24 h-24 mx-auto mb-4 rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
+        <Image
+          src={imageSrc}
+          alt={info.name}
+          fill
+          className="object-contain"
+          placeholder="blur"
+        />
+      </div>
+      <h2 className="text-xl font-bold text-gray-900">
+        {info.name}
+      </h2>
+      <p className="text-xs text-gray-400 mt-0.5 tabular-nums">
+        {typeValue}
+      </p>
+      <p className="text-sm text-gray-600 mt-2">
+        {info.description}
+      </p>
+    </motion.div>
+  );
+}
+
+function EnneagramPreview({ typeValue }: { typeValue?: string }) {
+  const mainType = typeValue?.[0];
+  const info = mainType ? ENNEAGRAM_INFO[mainType] : undefined;
+  const imageSrc = info?.image ?? null;
+
+  return (
+    <AnimatePresence mode="wait">
+      {info && imageSrc && (
+        <motion.div
+          key={mainType}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -8 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+        >
+          <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-white border border-gray-100 shrink-0">
+            <Image
+              src={imageSrc}
+              alt={info.name}
+              fill
+              className="object-contain"
+              placeholder="blur"
+            />
+          </div>
+          <div>
+            <p className="text-sm font-bold text-gray-900">
+              {info.name} 타입
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {info.description}
+            </p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// useWatch로 watch() 대체 — React Compiler 호환
+function EnneagramPreviewConnected({ control }: { control: import("react-hook-form").Control<SignupFormData> }) {
+  const enneagramType = useWatch({ control, name: "enneagram_type" });
+  return <EnneagramPreview typeValue={enneagramType} />;
 }
 
 type SignupFormProps = {
   formDefaultUserName: string;
   fromKakao: boolean;
+  defaultEnneagramType?: string;
+  kakaoAvatarUrl?: string | null;
 };
 
-function SignupForm({ formDefaultUserName, fromKakao }: SignupFormProps) {
+function SignupForm({
+  formDefaultUserName,
+  fromKakao,
+  defaultEnneagramType,
+  kakaoAvatarUrl,
+}: SignupFormProps) {
+  const showAlert = useAlert();
   const submitSignup = useSignupSubmit(fromKakao);
   const {
     register,
@@ -137,8 +368,7 @@ function SignupForm({ formDefaultUserName, fromKakao }: SignupFormProps) {
       user_name: formDefaultUserName,
       guk_no: undefined,
       birth_date: "",
-      leader_name: "",
-      enneagram_type: undefined,
+      enneagram_type: defaultEnneagramType,
     },
   });
 
@@ -159,7 +389,7 @@ function SignupForm({ formDefaultUserName, fromKakao }: SignupFormProps) {
       await submitSignup(data);
     } catch (e) {
       console.error("Signup submit error:", e);
-      alert("가입 처리 중 오류가 발생했습니다. 다시 시도해 주세요.");
+      showAlert("가입 처리 중 오류가 발생했습니다. 다시 시도해 주세요.");
     }
   };
 
@@ -169,6 +399,9 @@ function SignupForm({ formDefaultUserName, fromKakao }: SignupFormProps) {
       onSubmit={handleSubmit(onSubmit, onInvalid)}
       className="space-y-4"
     >
+      {!defaultEnneagramType && (
+        <EnneagramPreviewConnected control={control} />
+      )}
       <div>
         <label
           htmlFor="user_name"
@@ -176,14 +409,27 @@ function SignupForm({ formDefaultUserName, fromKakao }: SignupFormProps) {
         >
           이름 *
         </label>
-        <Input
-          id="user_name"
-          type="text"
-          placeholder="이름을 입력하세요 (한글 10자 이내)"
-          maxLength={10}
-          className={cn(errors.user_name && inputErrorClass)}
-          {...register("user_name")}
-        />
+        <div className="flex items-center gap-2">
+          {kakaoAvatarUrl && (
+            <div className="relative w-9 h-9 rounded-full overflow-hidden border border-gray-200 shrink-0">
+              <Image
+                src={kakaoAvatarUrl}
+                alt="프로필"
+                fill
+                className="object-cover"
+                unoptimized
+              />
+            </div>
+          )}
+          <Input
+            id="user_name"
+            type="text"
+            placeholder="이름을 입력하세요 (한글 10자 이내)"
+            maxLength={10}
+            className={cn(errors.user_name && inputErrorClass)}
+            {...register("user_name")}
+          />
+        </div>
         {errors.user_name && (
           <p className="mt-1 text-xs text-red-600">
             {errors.user_name.message}
@@ -244,67 +490,50 @@ function SignupForm({ formDefaultUserName, fromKakao }: SignupFormProps) {
         )}
       </div>
       <div>
-        <label
-          htmlFor="leader_name"
-          className="block text-xs font-medium text-gray-600 mb-1"
-        >
-          리더 이름 *
-        </label>
-        <Input
-          id="leader_name"
-          type="text"
-          placeholder="리더 이름을 입력하세요 (한글 10자 이내)"
-          maxLength={10}
-          className={cn(errors.leader_name && inputErrorClass)}
-          {...register("leader_name")}
-        />
-        {errors.leader_name && (
-          <p className="mt-1 text-xs text-red-600">
-            {errors.leader_name.message}
-          </p>
-        )}
-      </div>
-      <div>
-        <label
-          htmlFor="enneagram_type"
-          className="block text-xs font-medium text-gray-600 mb-1"
-        >
-          에니어그램 유형 *
-        </label>
-        <Controller
-          name="enneagram_type"
-          control={control}
-          render={({ field }) => (
-            <Select
-              value={field.value || undefined}
-              onValueChange={field.onChange}
+        {!defaultEnneagramType && (
+          <>
+            <label
+              htmlFor="enneagram_type"
+              className="block text-xs font-medium text-gray-600 mb-1"
             >
-              <SelectTrigger
-                id="enneagram_type"
-                className={cn(errors.enneagram_type && inputErrorClass)}
-              >
-                <SelectValue placeholder="에니어그램 유형 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {ENNEAGRAM_OPTIONS.filter((opt) => opt.value !== "").map(
-                  (opt) => (
-                    <SelectItem
-                      key={opt.value}
-                      value={opt.value}
-                      textValue={opt.label}
-                    >
-                      {opt.label}
-                    </SelectItem>
-                  ),
-                )}
-              </SelectContent>
-            </Select>
-          )}
-        />
-        {errors.enneagram_type && (
-          <p className="mt-1 text-xs text-red-600">
-            {errors.enneagram_type.message}
-          </p>
+              에니어그램 유형 *
+            </label>
+            <Controller
+              name="enneagram_type"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                >
+                  <SelectTrigger
+                    id="enneagram_type"
+                    className={cn(errors.enneagram_type && inputErrorClass)}
+                  >
+                    <SelectValue placeholder="에니어그램 유형 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ENNEAGRAM_OPTIONS.filter((opt) => opt.value !== "").map(
+                      (opt) => (
+                        <SelectItem
+                          key={opt.value}
+                          value={opt.value}
+                          textValue={opt.label}
+                        >
+                          {opt.label}
+                        </SelectItem>
+                      ),
+                    )}
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {errors.enneagram_type && (
+              <p className="mt-1 text-xs text-red-600">
+                {errors.enneagram_type.message}
+              </p>
+            )}
+          </>
         )}
       </div>
 
@@ -323,8 +552,19 @@ export default function SignupPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-fafafa flex items-center justify-center text-gray-500 text-sm">
-          로딩 중...
+        <div className="min-h-screen bg-fafafa flex flex-col items-center justify-center px-4 py-12 animate-pulse">
+          <div className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg p-8 mb-4">
+            <div className="h-7 w-16 bg-gray-100 rounded mx-auto mb-2" />
+            <div className="h-3 w-28 bg-gray-100 rounded mx-auto mb-8" />
+            <div className="space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="space-y-1.5">
+                  <div className="h-3 w-12 bg-gray-100 rounded" />
+                  <div className="h-10 w-full bg-gray-50 rounded-md border border-gray-200" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       }
     >
