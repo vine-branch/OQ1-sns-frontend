@@ -89,9 +89,6 @@ export default function ProfileView({
     streak: 0,
     maxStreak: 0,
     earlyBirdCount: 0,
-    level: 1,
-    currentExp: 0,
-    maxExp: 100,
     preferredType: "Morning" as "Morning" | "Night",
   });
 
@@ -122,13 +119,26 @@ export default function ProfileView({
             b.localeCompare(a),
           );
 
+          const isSunday = (d: Date) => d.getDay() === 0;
+
+          // 일요일 Free Pass: 두 날짜 사이에 일요일만 끼어 있으면 연속으로 인정
+          const isAdjacentDate = (newer: string, older: string) => {
+            const newerD = parseDate(newer);
+            const olderD = parseDate(older);
+            const diffHours = getDiffHours(newerD, olderD);
+            if (diffHours >= 23 && diffHours <= 25) return true;
+            if (diffHours >= 47 && diffHours <= 49) {
+              const middleDay = subtractDays(newerD, 1);
+              if (isSunday(middleDay)) return true;
+            }
+            return false;
+          };
+
+          // 최대 스트릭 계산
           let maxStreak = 1;
           let runningStreak = 1;
           for (let i = 1; i < uniqueDates.length; i++) {
-            const currentD = parseDate(uniqueDates[i - 1]);
-            const prevD = parseDate(uniqueDates[i]);
-            const diffHours = getDiffHours(currentD, prevD);
-            if (diffHours >= 23 && diffHours <= 25) {
+            if (isAdjacentDate(uniqueDates[i - 1], uniqueDates[i])) {
               runningStreak++;
               maxStreak = Math.max(maxStreak, runningStreak);
             } else {
@@ -136,22 +146,31 @@ export default function ProfileView({
             }
           }
 
-          const todayStr = getTodayStr();
-          const yesterdayStr = formatDateToStr(subtractDays(getNow(), 1));
-
+          // 현재 스트릭 계산: 시작점 결정
           const dateSet = new Set(uniqueDates);
           let currentStreak = 0;
           let checkDate = getNow();
 
-          if (!dateSet.has(todayStr)) {
-            if (!dateSet.has(yesterdayStr)) {
+          if (!dateSet.has(formatDateToStr(checkDate))) {
+            checkDate = subtractDays(checkDate, 1);
+            // 어제가 일요일이면 토요일까지 건너뜀
+            if (isSunday(checkDate)) {
+              checkDate = subtractDays(checkDate, 1);
+            }
+            if (!dateSet.has(formatDateToStr(checkDate))) {
               return { current: 0, max: maxStreak };
             }
-            checkDate = subtractDays(getNow(), 1);
           }
 
+          // 현재 스트릭 카운트
           while (true) {
             const dStr = formatDateToStr(checkDate);
+            if (isSunday(checkDate)) {
+              // 일요일: 했으면 카운트, 안 했어도 스트릭 유지
+              if (dateSet.has(dStr)) currentStreak++;
+              checkDate = subtractDays(checkDate, 1);
+              continue;
+            }
             if (dateSet.has(dStr)) {
               currentStreak++;
               checkDate = subtractDays(checkDate, 1);
@@ -240,8 +259,6 @@ export default function ProfileView({
       </div>
     );
 
-  const expPercentage = Math.min((stats.currentExp / stats.maxExp) * 100, 100);
-
   const computedBadges: Badge[] = [
     { ...BADGES[0], acquired: stats.maxStreak >= 3 },
     { ...BADGES[1], acquired: stats.maxStreak >= 7 },
@@ -322,9 +339,9 @@ export default function ProfileView({
               </div>
               <div className="text-center">
                 <span className="block font-bold text-gray-900">
-                  {stats.level}
+                  {computedBadges.filter((b) => b.acquired).length}
                 </span>
-                <span className="text-xs text-gray-500">레벨</span>
+                <span className="text-xs text-gray-500">뱃지</span>
               </div>
               <div className="text-center">
                 <span className="block font-bold text-gray-900">
@@ -334,35 +351,17 @@ export default function ProfileView({
               </div>
             </div>
 
-            {isOwnProfile ? (
+            {isOwnProfile && (
               <Link
                 href="/mypage/edit"
                 className="block w-full text-center bg-gray-100 text-sm font-semibold py-1.5 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 프로필 편집
               </Link>
-            ) : (
-              <button className="block w-full text-center bg-blue-500 text-white text-sm font-semibold py-1.5 rounded-lg hover:bg-blue-600 transition-colors">
-                팔로우
-              </button>
             )}
           </div>
         </div>
 
-        <div className="mt-6">
-          <div className="flex justify-between text-[10px] text-gray-400 mb-1 font-medium uppercase tracking-wide">
-            <span>Level Progress</span>
-            <span>
-              {stats.currentExp} / {stats.maxExp} EXP
-            </span>
-          </div>
-          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-linear-to-r from-yellow-400 via-orange-500 to-red-500"
-              style={{ width: `${expPercentage}%` }}
-            ></div>
-          </div>
-        </div>
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">

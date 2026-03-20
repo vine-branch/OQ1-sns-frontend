@@ -2,7 +2,8 @@
 
 import { EVENT_CHALLENGE } from "@/app/constants";
 import { getNow } from "@/lib/utils";
-import { differenceInCalendarDays, parseISO } from "date-fns";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { ko } from "date-fns/locale";
 import { Home, PlusSquare, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -120,18 +121,21 @@ export const Sidebar = () => {
           <p className="text-sm font-semibold text-gray-900 mt-1">
             {EVENT_CHALLENGE.name}
           </p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            {format(parseISO(EVENT_CHALLENGE.startDate), "yyyy.MM.dd(E)", { locale: ko })} ~ {format(parseISO(EVENT_CHALLENGE.endDate), "MM.dd(E)", { locale: ko })}
+          </p>
           <div className="mt-2 flex justify-between items-end">
             <span className="text-lg font-bold text-gray-900">
               {(() => {
-                const dDay = differenceInCalendarDays(
-                  parseISO(EVENT_CHALLENGE.startDate),
-                  getNow(),
-                );
-                return dDay > 0
-                  ? `D-${dDay}`
-                  : dDay === 0
-                    ? "D-Day"
-                    : `D+${Math.abs(dDay)}`;
+                const now = getNow();
+                const start = parseISO(EVENT_CHALLENGE.startDate);
+                const end = parseISO(EVENT_CHALLENGE.endDate);
+                const daysToStart = differenceInCalendarDays(start, now);
+                const daysToEnd = differenceInCalendarDays(end, now);
+
+                if (daysToStart > 0) return `D-${daysToStart}`;
+                if (daysToEnd >= 0) return "진행중";
+                return `D+${Math.abs(daysToEnd)}`;
               })()}
             </span>
             <span className="text-xs text-gray-400">함께해요!</span>

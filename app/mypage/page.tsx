@@ -6,7 +6,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { createClient } from "@/lib/supabase/client";
-import { LogOut, Menu, PlusSquare } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -86,12 +86,7 @@ export default function MyPage() {
   return (
     <div className="pb-20 md:py-8">
       <MobileHeader
-        rightContent={
-          <div className="flex gap-2">
-            <PlusSquare size={24} strokeWidth={1.5} />
-            <ProfileMenu />
-          </div>
-        }
+        rightContent={<ProfileMenu />}
       />
 
       <div className="mt-2 md:mt-0 relative">
