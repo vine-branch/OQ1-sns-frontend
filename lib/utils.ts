@@ -134,13 +134,12 @@ export function getDayOfMonth(date: Date): number {
 }
 
 // 개발 중인 기능 등을 환경/상황에 따라 제어하기 위한 피처 플래그 함수
-export type FeatureFlag = "photoUpload" | "tags" | "rewardStats" | "sharePost";
+export type FeatureFlag = "photoUpload" | "tags" | "sharePost";
 
 export function isFeatureEnabled(feature: FeatureFlag): boolean {
   const featureConfig: Record<FeatureFlag, boolean> = {
     photoUpload: false, // 아직 개발 중이므로 false
     tags: false, // 아직 개발 중이므로 false
-    rewardStats: false, // 개발 중이므로 잠시 가림
     sharePost: false, // TODO: 공유 기능 개발 필요
   };
 

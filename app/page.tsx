@@ -3,12 +3,12 @@
 import { createClient } from "@/lib/supabase/client";
 import { formatDate, isSameDayCheck } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import DailyWordCard from "./components/DailyWordCard";
 import FeedItem from "./components/FeedItem";
 import { MobileHeader } from "./components/MobileHeader";
-import { fetchPosts } from "./services/postService";
-import { FeedFilter, Post } from "./types";
+import { usePosts } from "./hooks/useQueries";
+import { FeedFilter } from "./types";
 
 // ─── Animation Variants ────────────────────────────────────────────────────
 
@@ -67,47 +67,40 @@ const particles = [
 
 export default function HomePage() {
   const [filter, setFilter] = useState<FeedFilter>(FeedFilter.ALL);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserEnneagram, setCurrentUserEnneagram] = useState<
-    string | null
-  >(null);
+  const [currentUserEnneagram, setCurrentUserEnneagram] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    const initPage = async () => {
+    const init = async () => {
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       setCurrentUserId(user?.id || null);
-
       if (user) {
-        const { data: userData } = await supabase
+        const { data } = await supabase
           .from("oq_users")
           .select("enneagram_type")
           .eq("id", user.id)
           .single();
-        if (userData) {
-          setCurrentUserEnneagram(userData.enneagram_type);
-        }
+        if (data) setCurrentUserEnneagram(data.enneagram_type);
       }
-
-      const mappedPosts = await fetchPosts(user?.id || null);
-      setPosts(mappedPosts);
-      setLoading(false);
+      setAuthReady(true);
     };
-
-    initPage();
+    init();
   }, []);
 
-  const filteredPosts = posts.filter((post) => {
-    if (filter === FeedFilter.MY_TYPE) {
-      if (!currentUserEnneagram) return true; // Fallback if user info doesn't exist
-      return post.user.enneagramType === currentUserEnneagram;
-    }
-    return true;
-  });
+  const { data: posts = [], isLoading: postsLoading } = usePosts(authReady ? currentUserId : null);
+  const loading = !authReady || postsLoading;
+
+  const filteredPosts = useMemo(() => {
+    return posts.filter((post) => {
+      if (filter === FeedFilter.MY_TYPE) {
+        if (!currentUserEnneagram) return true;
+        return post.user.enneagramType?.[0] === currentUserEnneagram[0];
+      }
+      return true;
+    });
+  }, [posts, filter, currentUserEnneagram]);
 
   return (
     <div className="relative pb-20 md:py-8 px-0">
@@ -154,12 +147,25 @@ export default function HomePage() {
         {/* ── 피드 목록: Stagger Loading ── */}
         <div className="space-y-4">
           {loading ? (
-            <motion.div
-              {...feedItemTransition(0)}
-              className="py-10 text-center text-gray-400"
-            >
-              Loading feeds...
-            </motion.div>
+            Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="bg-white border-b border-gray-200 md:border md:rounded-lg animate-pulse">
+                <div className="p-3 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gray-100 rounded-full" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 w-20 bg-gray-100 rounded" />
+                  </div>
+                </div>
+                <div className="px-3 pb-3 space-y-2">
+                  <div className="h-3.5 w-full bg-gray-100 rounded" />
+                  <div className="h-3.5 w-4/5 bg-gray-100 rounded" />
+                  <div className="h-3.5 w-3/5 bg-gray-100 rounded" />
+                </div>
+                <div className="px-3 pb-3 flex gap-3">
+                  <div className="h-6 w-6 bg-gray-100 rounded" />
+                  <div className="h-6 w-6 bg-gray-100 rounded" />
+                </div>
+              </div>
+            ))
           ) : filteredPosts.length > 0 ? (
             filteredPosts.map((post, index) => {
               const prevPost = index > 0 ? filteredPosts[index - 1] : null;

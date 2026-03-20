@@ -9,7 +9,6 @@ import {
   formatRelativeTime,
   getDiffHours,
   getNow,
-  getTodayStr,
   isFeatureEnabled,
   parseDate,
   subtractDays,
@@ -17,34 +16,14 @@ import {
 import { motion } from "framer-motion";
 import { Award, Calendar, MessageSquare } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { BADGES } from "../constants";
-import {
-  fetchRecentReactions,
-  fetchUserPosts,
-  fetchUserProfile,
-} from "../services/postService";
+import { useRecentReactions, useUserPosts, useUserProfile } from "../hooks/useQueries";
 import { Badge, Post } from "../types";
 import ActivityCalendar from "./ActivityCalendar";
 import FeedItem from "./FeedItem";
 import UserAvatar from "./UserAvatar";
-
-interface UserProfile {
-  id: string;
-  user_name: string;
-  guk_no: number;
-  birth_date: string;
-  leader_name: string;
-  enneagram_type: string;
-  avatar_url?: string;
-}
-
-interface Reaction {
-  id: string;
-  type: "like" | "comment";
-  user_name: string;
-  created_at: string;
-}
+import UserBadges from "./UserBadges";
 
 // ─── Animation Helpers ────────────────────────────────────────────────────
 const fadeRise = (delay = 0) => ({
@@ -74,179 +53,156 @@ export default function ProfileView({
   isOwnProfile = false,
   children,
 }: ProfileViewProps) {
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [activityDates, setActivityDates] = useState<string[]>([]);
-  const [hasDoneToday, setHasDoneToday] = useState(false);
-  const [reactions, setReactions] = useState<Reaction[]>([]);
-
-  // Badge Modal
   const [showBadgeModal, setShowBadgeModal] = useState(false);
 
-  const [stats, setStats] = useState({
-    postCount: 0,
-    streak: 0,
-    maxStreak: 0,
-    earlyBirdCount: 0,
-    preferredType: "Morning" as "Morning" | "Night",
-  });
+  // React Query: 프로필 + 게시글 병렬 fetch
+  const { data: profile, isLoading: profileLoading } = useUserProfile(userId);
+  const { data: rawPosts, isLoading: postsLoading } = useUserPosts(userId, isOwnProfile);
+  const loading = profileLoading || postsLoading;
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+  // 파생 상태: 한 번의 순회로 모든 통계 계산
+  const { activityDates, hasDoneToday, stats, posts } = useMemo(() => {
+    if (!rawPosts || rawPosts.length === 0) {
+      return {
+        activityDates: [] as string[],
+        hasDoneToday: false,
+        stats: { postCount: 0, streak: 0, maxStreak: 0, earlyBirdCount: 0, preferredType: "Morning" as const },
+        posts: [] as Post[],
+      };
+    }
 
-      // 1. 프로필 조회
-      const userData = await fetchUserProfile(userId);
+    const dates: string[] = [];
+    let earlyCount = 0;
+    let dayCount = 0;
+    let nightCount = 0;
+    let doneToday = false;
 
-      if (userData) {
-        setProfile(userData);
-      }
+    // 단일 순회로 dates, 시간대 통계, hasDoneToday 계산
+    for (const post of rawPosts) {
+      dates.push(post.timestamp.split("T")[0]);
+      const hour = parseDate(post.timestamp).getHours();
+      if (hour < 6) earlyCount++;
+      if (hour >= 6 && hour < 18) dayCount++;
+      else nightCount++;
+      if (post.user.hasDoneToday) doneToday = true;
+    }
 
-      // 2. 큐티 게시글 조회
-      const formattedPosts = await fetchUserPosts(userId, isOwnProfile);
+    const preferredType = nightCount > dayCount ? "Night" : "Morning";
 
-      if (formattedPosts) {
-        // 날짜 및 스트릭 계산용 데이터
-        const dates = formattedPosts.map((post) => {
-          return post.timestamp.split("T")[0];
-        });
-        setActivityDates(dates);
+    // 스트릭 계산
+    const calculateStreaks = (dateList: string[]) => {
+      if (dateList.length === 0) return { current: 0, max: 0 };
+      const uniqueDates = Array.from(new Set(dateList)).sort((a, b) => b.localeCompare(a));
+      const isSunday = (d: Date) => d.getDay() === 0;
 
-        const calculateStreaks = (dateList: string[]) => {
-          if (dateList.length === 0) return { current: 0, max: 0 };
-          const uniqueDates = Array.from(new Set(dateList)).sort((a, b) =>
-            b.localeCompare(a),
-          );
+      const isAdjacentDate = (newer: string, older: string) => {
+        const newerD = parseDate(newer);
+        const olderD = parseDate(older);
+        const diffHours = getDiffHours(newerD, olderD);
+        if (diffHours >= 23 && diffHours <= 25) return true;
+        if (diffHours >= 47 && diffHours <= 49) {
+          if (isSunday(subtractDays(newerD, 1))) return true;
+        }
+        return false;
+      };
 
-          const isSunday = (d: Date) => d.getDay() === 0;
-
-          // 일요일 Free Pass: 두 날짜 사이에 일요일만 끼어 있으면 연속으로 인정
-          const isAdjacentDate = (newer: string, older: string) => {
-            const newerD = parseDate(newer);
-            const olderD = parseDate(older);
-            const diffHours = getDiffHours(newerD, olderD);
-            if (diffHours >= 23 && diffHours <= 25) return true;
-            if (diffHours >= 47 && diffHours <= 49) {
-              const middleDay = subtractDays(newerD, 1);
-              if (isSunday(middleDay)) return true;
-            }
-            return false;
-          };
-
-          // 최대 스트릭 계산
-          let maxStreak = 1;
-          let runningStreak = 1;
-          for (let i = 1; i < uniqueDates.length; i++) {
-            if (isAdjacentDate(uniqueDates[i - 1], uniqueDates[i])) {
-              runningStreak++;
-              maxStreak = Math.max(maxStreak, runningStreak);
-            } else {
-              runningStreak = 1;
-            }
-          }
-
-          // 현재 스트릭 계산: 시작점 결정
-          const dateSet = new Set(uniqueDates);
-          let currentStreak = 0;
-          let checkDate = getNow();
-
-          if (!dateSet.has(formatDateToStr(checkDate))) {
-            checkDate = subtractDays(checkDate, 1);
-            // 어제가 일요일이면 토요일까지 건너뜀
-            if (isSunday(checkDate)) {
-              checkDate = subtractDays(checkDate, 1);
-            }
-            if (!dateSet.has(formatDateToStr(checkDate))) {
-              return { current: 0, max: maxStreak };
-            }
-          }
-
-          // 현재 스트릭 카운트
-          while (true) {
-            const dStr = formatDateToStr(checkDate);
-            if (isSunday(checkDate)) {
-              // 일요일: 했으면 카운트, 안 했어도 스트릭 유지
-              if (dateSet.has(dStr)) currentStreak++;
-              checkDate = subtractDays(checkDate, 1);
-              continue;
-            }
-            if (dateSet.has(dStr)) {
-              currentStreak++;
-              checkDate = subtractDays(checkDate, 1);
-            } else {
-              break;
-            }
-          }
-
-          return {
-            current: Math.max(1, currentStreak),
-            max: Math.max(currentStreak, maxStreak),
-          };
-        };
-
-        const { current: currentStreak, max: maxStreak } =
-          calculateStreaks(dates);
-
-        const doneToday = formattedPosts.some((post) => post.user.hasDoneToday);
-        setHasDoneToday(doneToday);
-
-        let earlyCount = 0;
-        let dayCount = 0;
-        let nightCount = 0;
-        formattedPosts.forEach((p) => {
-          const d = parseDate(p.timestamp);
-          const hour = d.getHours();
-          if (hour < 6) earlyCount++;
-          if (hour >= 6 && hour < 18) {
-            dayCount++;
-          } else {
-            nightCount++;
-          }
-        });
-
-        const preferredType = nightCount > dayCount ? "Night" : "Morning";
-
-        setStats((prev) => ({
-          ...prev,
-          postCount: formattedPosts.length,
-          streak: currentStreak,
-          maxStreak: maxStreak,
-          earlyBirdCount: earlyCount,
-          preferredType: preferredType,
-        }));
-
-        const postsWithProfile = formattedPosts.map((post) => ({
-          ...post,
-          user: {
-            ...post.user,
-            name: userData?.user_name || "사용자",
-            avatar: userData?.avatar_url || post.user.avatar,
-            type: preferredType as "Morning" | "Night" | "Lunch" | "Anytime",
-            streak: currentStreak,
-          },
-        })) as Post[];
-
-        setPosts(postsWithProfile);
-
-        if (isOwnProfile && formattedPosts.length > 0) {
-          const postIds = formattedPosts.map((p) => p.id);
-          const recentReactions = await fetchRecentReactions(userId, postIds);
-          setReactions(recentReactions);
+      let maxStreak = 1;
+      let runningStreak = 1;
+      for (let i = 1; i < uniqueDates.length; i++) {
+        if (isAdjacentDate(uniqueDates[i - 1], uniqueDates[i])) {
+          runningStreak++;
+          maxStreak = Math.max(maxStreak, runningStreak);
+        } else {
+          runningStreak = 1;
         }
       }
-      setLoading(false);
+
+      const dateSet = new Set(uniqueDates);
+      let currentStreak = 0;
+      let checkDate = getNow();
+
+      if (!dateSet.has(formatDateToStr(checkDate))) {
+        checkDate = subtractDays(checkDate, 1);
+        if (isSunday(checkDate)) checkDate = subtractDays(checkDate, 1);
+        if (!dateSet.has(formatDateToStr(checkDate))) return { current: 0, max: maxStreak };
+      }
+
+      while (true) {
+        const dStr = formatDateToStr(checkDate);
+        if (isSunday(checkDate)) {
+          if (dateSet.has(dStr)) currentStreak++;
+          checkDate = subtractDays(checkDate, 1);
+          continue;
+        }
+        if (dateSet.has(dStr)) {
+          currentStreak++;
+          checkDate = subtractDays(checkDate, 1);
+        } else {
+          break;
+        }
+      }
+
+      return { current: Math.max(1, currentStreak), max: Math.max(currentStreak, maxStreak) };
     };
 
-    fetchData();
-  }, [userId, isOwnProfile]);
+    const { current: currentStreak, max: maxStreak } = calculateStreaks(dates);
+
+    const postsWithProfile = rawPosts.map((post) => ({
+      ...post,
+      user: {
+        ...post.user,
+        name: profile?.user_name || "사용자",
+        avatar: profile?.avatar_url || post.user.avatar,
+        type: preferredType as "Morning" | "Night" | "Lunch" | "Anytime",
+        streak: currentStreak,
+      },
+    })) as Post[];
+
+    return {
+      activityDates: dates,
+      hasDoneToday: doneToday,
+      stats: {
+        postCount: rawPosts.length,
+        streak: currentStreak,
+        maxStreak,
+        earlyBirdCount: earlyCount,
+        preferredType: preferredType as "Morning" | "Night",
+      },
+      posts: postsWithProfile,
+    };
+  }, [rawPosts, profile]);
+
+  // 반응 데이터: 게시글 로드 후 조건부 fetch
+  const postIds = useMemo(() => posts.map((p) => p.id), [posts]);
+  const { data: reactions = [] } = useRecentReactions(
+    userId,
+    postIds,
+    isOwnProfile && posts.length > 0,
+  );
 
   if (loading) {
     return (
-      <div className="py-20 flex flex-col items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-20 w-20 bg-gray-100 rounded-full mb-4"></div>
-          <div className="h-4 w-32 bg-gray-100 rounded"></div>
+      <div className="w-full animate-pulse">
+        <div className="bg-white p-6 md:rounded-lg md:border border-gray-200 mb-6">
+          <div className="flex items-center gap-6 md:gap-8">
+            <div className="w-20 h-20 bg-gray-100 rounded-full shrink-0" />
+            <div className="flex-1 space-y-3">
+              <div className="h-5 w-24 bg-gray-100 rounded" />
+              <div className="h-3 w-36 bg-gray-100 rounded" />
+              <div className="flex gap-6">
+                <div className="h-8 w-12 bg-gray-100 rounded" />
+                <div className="h-8 w-12 bg-gray-100 rounded" />
+                <div className="h-8 w-12 bg-gray-100 rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
+          <div className="md:col-span-2 space-y-6">
+            <div className="bg-white p-5 rounded-lg border border-gray-200 h-32" />
+            <div className="bg-white p-5 rounded-lg border border-gray-200 h-40" />
+          </div>
+          <div className="bg-white p-5 rounded-lg border border-gray-200 h-48" />
         </div>
       </div>
     );
@@ -323,10 +279,16 @@ export default function ProfileView({
                 <h2 className="text-xl font-bold text-gray-900 leading-tight">
                   {profile.user_name}
                 </h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  청년 {profile.guk_no}국 • {profile.enneagram_type || "미설정"}{" "}
-                  타입
-                </p>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <span className="text-sm text-gray-500">
+                    청년 {profile.guk_no}국
+                  </span>
+                  <UserBadges
+                    enneagramType={profile.enneagram_type}
+                    badges={computedBadges.filter((b) => b.acquired).map((b) => b.icon)}
+                    showFullType
+                  />
+                </div>
               </div>
             </div>
 
@@ -361,7 +323,6 @@ export default function ProfileView({
             )}
           </div>
         </div>
-
       </motion.div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-0">
@@ -493,7 +454,7 @@ export default function ProfileView({
                 className="bg-linear-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-lg shadow-md text-white relative overflow-hidden"
               >
                 <div className="relative z-10">
-                  <h3 className="text-lg font-bold mb-1">오늘의 응원</h3>
+                  <h3 className="text-lg font-bold mb-1">공동체의 응원</h3>
                   <p className="text-white/80 text-xs mb-4">
                     지체들의 따뜻한 마음을 확인하세요.
                   </p>
@@ -574,12 +535,6 @@ export default function ProfileView({
                 <span className="text-gray-600">소속</span>
                 <span className="font-bold text-gray-900">
                   청년 {profile.guk_no}국
-                </span>
-              </div>
-              <div className="flex justify-between items-center text-sm">
-                <span className="text-gray-600">리더</span>
-                <span className="font-bold text-gray-900">
-                  {profile.leader_name} 리더
                 </span>
               </div>
             </div>

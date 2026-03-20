@@ -16,7 +16,6 @@ export interface QtAnswerRow {
   created_at: string;
   is_public: boolean;
   user_id: string;
-  answer_type: string;
   user: {
     id: string;
     user_name: string;
@@ -53,7 +52,10 @@ export interface UserPostRow {
     verse_to: number;
     content: string;
   };
-  likes: { count: number }[];
+  likes: {
+    user_id: string;
+    user: { user_name: string; avatar_url?: string };
+  }[];
   comments: { count: number }[];
   liked_by_me: { user_id: string }[];
 }
@@ -65,6 +67,79 @@ export interface DBReactionRow {
     user_name: string;
     avatar_url?: string;
   } | null;
+}
+
+// ─── Badge Computation ───────────────────────────────────────────────────
+
+interface UserStats {
+  postCount: number;
+  maxStreak: number;
+  earlyBirdCount: number;
+}
+
+function computeBadges(stats: UserStats): string[] {
+  const badges: string[] = [];
+  if (stats.maxStreak >= 3) badges.push("🌱");
+  if (stats.maxStreak >= 7) badges.push("🔥");
+  if (stats.earlyBirdCount >= 10) badges.push("🌅");
+  if (stats.postCount >= 100) badges.push("👑");
+  return badges;
+}
+
+async function fetchUserStatsMap(userIds: string[]): Promise<Map<string, string[]>> {
+  if (userIds.length === 0) return new Map();
+
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("oq_user_qt_answers")
+    .select("user_id, created_at")
+    .in("user_id", userIds)
+    .order("created_at", { ascending: true });
+
+  if (!data) return new Map();
+
+  // 유저별로 그룹화
+  const byUser = new Map<string, { dates: Set<string>; earlyCount: number }>();
+  for (const row of data) {
+    const uid = row.user_id;
+    if (!byUser.has(uid)) byUser.set(uid, { dates: new Set(), earlyCount: 0 });
+    const entry = byUser.get(uid)!;
+    const d = parseDate(row.created_at);
+    entry.dates.add(format(d, "yyyy-MM-dd"));
+    if (d.getHours() < 6) entry.earlyCount++;
+  }
+
+  const result = new Map<string, string[]>();
+  for (const [uid, entry] of byUser) {
+    const sortedDates = Array.from(entry.dates).sort();
+    let maxStreak = 0;
+    let currentRun = 1;
+    for (let i = 1; i < sortedDates.length; i++) {
+      const prev = parseDate(sortedDates[i - 1]);
+      const curr = parseDate(sortedDates[i]);
+      const diffMs = curr.getTime() - prev.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      // 1일 차이 또는 2일 차이(일요일 free pass 가능)
+      if (diffDays <= 2) {
+        currentRun++;
+      } else {
+        maxStreak = Math.max(maxStreak, currentRun);
+        currentRun = 1;
+      }
+    }
+    maxStreak = Math.max(maxStreak, currentRun);
+
+    result.set(
+      uid,
+      computeBadges({
+        postCount: entry.dates.size,
+        maxStreak: sortedDates.length > 0 ? maxStreak : 0,
+        earlyBirdCount: entry.earlyCount,
+      }),
+    );
+  }
+
+  return result;
 }
 
 // ─── Private Helpers ──────────────────────────────────────────────────────
@@ -97,6 +172,7 @@ function mapToPost(
   activeUserIds: Set<string>,
   currentUserId: string | null = null,
   isUserPost: boolean = false,
+  badgesMap: Map<string, string[]> = new Map(),
 ): Post {
   const userId = isUserPost
     ? (item as UserPostRow).user_id || ""
@@ -122,6 +198,7 @@ function mapToPost(
       maxExp: 100,
       hasDoneToday: activeUserIds.has(userId),
       enneagramType: user?.enneagram_type,
+      badges: badgesMap.get(userId) || [],
     },
     content: item.meditation,
     scriptureRef: dailyQt
@@ -131,24 +208,25 @@ function mapToPost(
     scriptureTitle: dailyQt
       ? `${dailyQt.bible_book} ${dailyQt.chapter}장`
       : undefined,
-    amenCount: isUserPost
-      ? (item.likes && (item.likes as { count: number }[])[0]?.count) || 0
-      : (item.likes as QtAnswerRow["likes"])?.length || 0,
-    likedUsers:
-      !isUserPost && (item.likes as QtAnswerRow["likes"])
-        ? (item.likes as QtAnswerRow["likes"]).map((l) => ({
-            userId: l.user_id,
-            userName: l.user?.user_name || "알 수 없음",
-            avatarUrl: l.user?.avatar_url,
-          }))
-        : [],
+    amenCount: (item.likes as { user_id: string }[])?.length || 0,
+    likedUsers: (
+      item.likes as { user_id: string; user: { user_name: string; avatar_url?: string } }[]
+    )
+      ? (
+          item.likes as { user_id: string; user: { user_name: string; avatar_url?: string } }[]
+        ).map((l) => ({
+          userId: l.user_id,
+          userName: l.user?.user_name || "알 수 없음",
+          avatarUrl: l.user?.avatar_url,
+        }))
+      : [],
     commentCount: (item.comments && item.comments[0]?.count) || 0,
     isLiked:
-      (item.liked_by_me &&
+      !!(
         currentUserId &&
-        item.liked_by_me.some((like) => like.user_id === currentUserId)) ||
-      (item.liked_by_me && !currentUserId && item.liked_by_me.length > 0) ||
-      false,
+        item.liked_by_me &&
+        item.liked_by_me.some((like) => like.user_id === currentUserId)
+      ),
     timestamp: item.created_at,
     tags: [],
     isAnonymous: !item.is_public,
@@ -170,7 +248,7 @@ export async function fetchPosts(
     .from("oq_user_qt_answers")
     .select(
       `
-      id, meditation, created_at, is_public, user_id, answer_type,
+      id, meditation, created_at, is_public, user_id,
       user:oq_users!user_id ( id, user_name, guk_no, avatar_url, enneagram_type ),
       daily_qt:oq_daily_qt ( bible_book, chapter, verse_from, verse_to, content ),
       likes:oq_qt_likes( user_id, user:oq_users!user_id(user_name, avatar_url) ),
@@ -179,6 +257,7 @@ export async function fetchPosts(
     `,
     )
     .eq("is_public", true)
+    .or("is_hidden.is.null,is_hidden.eq.false")
     .order("created_at", { ascending: false });
 
   if (error || !data) {
@@ -186,9 +265,14 @@ export async function fetchPosts(
     return [];
   }
 
-  const activeUserIds = await getActiveUserIdsToday();
-  return (data as unknown as QtAnswerRow[]).map((item) =>
-    mapToPost(item, activeUserIds, currentUserId),
+  const rows = data as unknown as QtAnswerRow[];
+  const userIds = [...new Set(rows.map((r) => r.user_id))];
+  const [activeUserIds, badgesMap] = await Promise.all([
+    getActiveUserIdsToday(),
+    fetchUserStatsMap(userIds),
+  ]);
+  return rows.map((item) =>
+    mapToPost(item, activeUserIds, currentUserId, false, badgesMap),
   );
 }
 
@@ -231,7 +315,7 @@ export async function fetchUserPosts(
       `
       id, created_at, meditation, is_public, user_id,
       oq_daily_qt!inner ( qt_date, bible_book, chapter, verse_from, verse_to, content ),
-      likes:oq_qt_likes(count),
+      likes:oq_qt_likes( user_id, user:oq_users!user_id(user_name, avatar_url) ),
       comments:oq_qt_comments(count),
       liked_by_me:oq_qt_likes(user_id)
     `,
@@ -249,9 +333,12 @@ export async function fetchUserPosts(
     return [];
   }
 
-  const activeUserIds = await getActiveUserIdsToday([userId]);
+  const [activeUserIds, badgesMap] = await Promise.all([
+    getActiveUserIdsToday([userId]),
+    fetchUserStatsMap([userId]),
+  ]);
   return (data as unknown as UserPostRow[]).map((item) =>
-    mapToPost(item, activeUserIds, userId, true),
+    mapToPost(item, activeUserIds, userId, true, badgesMap),
   );
 }
 
