@@ -10,14 +10,16 @@ import { LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useConfirm } from "../components/ConfirmProvider";
 import { MobileHeader } from "../components/MobileHeader";
 import ProfileView from "../components/ProfileView";
 
 function ProfileMenu() {
   const router = useRouter();
+  const confirm = useConfirm();
 
   const handleLogout = async () => {
-    if (!confirm("로그아웃 하시겠어요?")) return;
+    if (!(await confirm("로그아웃 하시겠어요?"))) return;
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/login");

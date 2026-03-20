@@ -26,6 +26,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useAlert } from "../components/AlertProvider";
 import { getDailyInsight } from "../services/aiService";
 import { createPost, State } from "./actions";
 
@@ -53,6 +54,7 @@ function UploadForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editPostId = searchParams.get("id");
+  const showAlert = useAlert();
 
   // Server Action State (React 19)
   const [state, formAction, isPending] = useActionState(
@@ -86,9 +88,9 @@ function UploadForm() {
       const timer = setTimeout(() => setShowReward(true), 0);
       return () => clearTimeout(timer);
     } else if (state.message) {
-      alert(state.message);
+      showAlert(state.message);
     }
-  }, [state]);
+  }, [state, showAlert]);
 
   useEffect(() => {
     if (showReward) {
@@ -213,7 +215,7 @@ function UploadForm() {
       if (cleanTag && cleanTag.length <= 20 && !tags.includes(cleanTag)) {
         setTags([...tags, cleanTag]);
       } else if (cleanTag.length > 20) {
-        alert("태그는 20자 이내로 입력해 주세요.");
+        showAlert("태그를 조금만 더 줄여볼까요? 20자 이내면 딱 좋아요! 😊");
       }
       setTagInput("");
     }
@@ -226,7 +228,7 @@ function UploadForm() {
   const handleGenerateInsight = async () => {
     const scripture = dailyQt?.content;
     if (!scripture) {
-      alert("오늘의 성경 본문을 불러오지 못했습니다.");
+      showAlert("오늘의 말씀을 아직 불러오지 못했어요. 잠시만 기다려 주시겠어요? 🌿");
       return;
     }
     setIsGeneratingInsight(true);
@@ -242,8 +244,27 @@ function UploadForm() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        Loading...
+      <div className="bg-white min-h-screen animate-pulse">
+        <div className="sticky top-0 z-30 bg-white border-b border-gray-100 flex items-center justify-between px-4 h-12">
+          <div className="h-4 w-10 bg-gray-100 rounded" />
+          <div className="h-4 w-24 bg-gray-100 rounded" />
+          <div className="h-4 w-10 bg-gray-100 rounded" />
+        </div>
+        <div className="max-w-2xl mx-auto">
+          <div className="mx-4 mt-4 mb-2 bg-gray-50 p-4 rounded-lg border-l-4 border-gray-200 space-y-2">
+            <div className="h-4 w-32 bg-gray-200 rounded" />
+            <div className="h-3 w-full bg-gray-200 rounded" />
+            <div className="h-3 w-4/5 bg-gray-200 rounded" />
+          </div>
+          <div className="flex p-4 gap-4 border-b border-gray-100">
+            <div className="w-10 h-10 bg-gray-100 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <div className="h-3 w-full bg-gray-100 rounded" />
+              <div className="h-3 w-3/4 bg-gray-100 rounded" />
+              <div className="h-3 w-1/2 bg-gray-100 rounded" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -313,38 +334,11 @@ function UploadForm() {
               </div>
 
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                인증 완료!
+                오.큐.완!
               </h2>
               <p className="text-gray-500 mb-8 text-sm">
-                오늘도 말씀을 통해 승리하셨군요!
+                오늘 하루도 말씀과 함께 소중한 시간을 보내셨네요! ✨
               </p>
-
-              {/* TODO: Implement logic for EXP and Consecutive Days */}
-              {isFeatureEnabled("rewardStats") && (
-                <div className="space-y-3 mb-8">
-                  <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
-                    <span className="text-sm font-semibold text-gray-600">
-                      획득 경험치
-                    </span>
-                    <span className="text-sm font-bold text-blue-500">
-                      +50 EXP
-                    </span>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-xl flex items-center justify-between border border-gray-100">
-                    <span className="text-sm font-semibold text-gray-600">
-                      연속 묵상
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <span className="text-sm font-bold text-orange-500">
-                        1일째
-                      </span>
-                      <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold">
-                        HOT
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
 
               <button
                 type="button"
@@ -478,7 +472,7 @@ function UploadForm() {
             <Textarea
               name="content" // Server Action binds to this name
               className="w-full h-32 md:h-40 p-0 text-base placeholder:text-gray-400 border-none resize-none leading-relaxed bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none focus-visible:outline-none"
-              placeholder="묵상 내용을 10자 이상 입력하세요..."
+              placeholder="오늘의 말씀을 통해 주신 귀한 묵상을 10자 이상 나눠주세요... 🌿"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               maxLength={2200}
@@ -605,8 +599,12 @@ export default function UploadPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-white flex items-center justify-center">
-          Loading...
+        <div className="bg-white min-h-screen animate-pulse">
+          <div className="sticky top-0 z-30 bg-white border-b border-gray-100 flex items-center justify-between px-4 h-12">
+            <div className="h-4 w-10 bg-gray-100 rounded" />
+            <div className="h-4 w-24 bg-gray-100 rounded" />
+            <div className="h-4 w-10 bg-gray-100 rounded" />
+          </div>
         </div>
       }
     >

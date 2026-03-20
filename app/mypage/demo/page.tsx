@@ -16,6 +16,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import ActivityCalendar from "../../components/ActivityCalendar";
+import { useConfirm } from "../../components/ConfirmProvider";
 import FeedItem from "../../components/FeedItem";
 import { MobileHeader } from "../../components/MobileHeader";
 import UserAvatar from "../../components/UserAvatar";
@@ -23,9 +24,10 @@ import { BADGES, CURRENT_USER, MOCK_MY_POSTS } from "../../constants";
 
 function ProfileMenu() {
   const router = useRouter();
+  const confirm = useConfirm();
 
   const handleLogout = async () => {
-    if (!confirm("로그아웃 하시겠어요?")) return;
+    if (!(await confirm("로그아웃 하시겠어요?"))) return;
     router.push("/login");
     router.refresh();
   };
@@ -223,7 +225,7 @@ export default function MyPage() {
           {/* Gradient Card */}
           <div className="bg-linear-to-br from-purple-600 via-pink-600 to-orange-500 p-6 rounded-lg shadow-md text-white relative overflow-hidden">
             <div className="relative z-10">
-              <h3 className="text-lg font-bold mb-1">오늘의 응원</h3>
+              <h3 className="text-lg font-bold mb-1">공동체의 응원</h3>
               <p className="text-white/80 text-xs mb-4">
                 지체들의 따뜻한 마음을 확인하세요.
               </p>

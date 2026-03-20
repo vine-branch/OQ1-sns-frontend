@@ -1,20 +1,29 @@
 "use client";
 
+import { useAlert } from "@/app/components/AlertProvider";
 import { createClient } from "@/lib/supabase/client";
+import { motion } from "framer-motion";
 import { AlertTriangle, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+const fadeRise = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.45, ease: "easeOut" as const, delay },
+});
+
 export default function DeleteAccountPage() {
   const router = useRouter();
+  const showAlert = useAlert();
   const [isDeleting, setIsDeleting] = useState(false);
   const [step, setStep] = useState<"warning" | "confirm">("warning");
   const [confirmText, setConfirmText] = useState("");
 
   const handleDeactivate = async () => {
     if (confirmText !== "회원탈퇴") {
-      alert('정확히 "회원탈퇴"를 입력해주세요.');
+      showAlert('정확히 "회원탈퇴"를 입력해주세요.');
       return;
     }
 
@@ -27,8 +36,7 @@ export default function DeleteAccountPage() {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        alert("로그인이 필요합니다.");
-        router.push("/login");
+        showAlert("로그인이 필요합니다.", () => router.push("/login"));
         return;
       }
 
@@ -47,8 +55,8 @@ export default function DeleteAccountPage() {
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Account deletion error:", errorData);
-        alert(
-          `회원탈퇴 처리 중 오류가 발생했습니다.\n에러: ${errorData.error}\n다시 시도해 주세요.`,
+        showAlert(
+          `회원탈퇴 처리 중 오류가 발생했습니다. 에러: ${errorData.error} 다시 시도해 주세요.`,
         );
         setIsDeleting(false);
         return;
@@ -61,7 +69,7 @@ export default function DeleteAccountPage() {
       router.push("/mypage/delete/complete");
     } catch (error) {
       console.error("Unexpected error during account deletion:", error);
-      alert("예상치 못한 오류가 발생했습니다.");
+      showAlert("예상치 못한 오류가 발생했습니다.");
       setIsDeleting(false);
     }
   };
@@ -88,24 +96,24 @@ export default function DeleteAccountPage() {
         {step === "warning" ? (
           <div className="space-y-6">
             {/* 경고 아이콘 */}
-            <div className="flex justify-center">
+            <motion.div {...fadeRise(0)} className="flex justify-center">
               <div className="w-20 h-20 rounded-full bg-red-50 flex items-center justify-center">
                 <AlertTriangle size={40} className="text-red-500" />
               </div>
-            </div>
+            </motion.div>
 
             {/* 제목 */}
-            <div className="text-center">
+            <motion.div {...fadeRise(0.05)} className="text-center">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">
                 정말 탈퇴하시겠어요?
               </h2>
               <p className="text-sm text-gray-500">
                 탈퇴하시기 전에 아래 내용을 확인해주세요
               </p>
-            </div>
+            </motion.div>
 
             {/* 안내 사항 */}
-            <div className="bg-gray-50 rounded-lg p-5 space-y-4">
+            <motion.div {...fadeRise(0.1)} className="bg-gray-50 rounded-lg p-5 space-y-4">
               <div className="space-y-2">
                 <h3 className="font-semibold text-gray-900 text-sm">
                   📌 탈퇴 시 삭제되는 정보
@@ -139,10 +147,10 @@ export default function DeleteAccountPage() {
                   <li>• 작성한 모든 게시물 삭제</li>
                 </ul>
               </div>
-            </div>
+            </motion.div>
 
             {/* 버튼 */}
-            <div className="space-y-3 pt-4">
+            <motion.div {...fadeRise(0.15)} className="space-y-3 pt-4">
               <button
                 type="button"
                 onClick={() => setStep("confirm")}
@@ -156,22 +164,22 @@ export default function DeleteAccountPage() {
               >
                 취소
               </Link>
-            </div>
+            </motion.div>
           </div>
         ) : (
           <div className="space-y-6">
             {/* 최종 확인 */}
-            <div className="text-center">
+            <motion.div {...fadeRise(0)} className="text-center">
               <h2 className="text-xl font-bold text-gray-900 mb-2">
                 최종 확인
               </h2>
               <p className="text-sm text-gray-500">
                 정말로 탈퇴하시려면 아래에 &quot;회원탈퇴&quot;를 입력해주세요
               </p>
-            </div>
+            </motion.div>
 
             {/* 확인 입력 */}
-            <div className="space-y-2">
+            <motion.div {...fadeRise(0.05)} className="space-y-2">
               <label
                 htmlFor="confirm-text"
                 className="block text-sm font-medium text-gray-700"
@@ -190,10 +198,10 @@ export default function DeleteAccountPage() {
               <p className="text-xs text-gray-500">
                 정확히 &quot;회원탈퇴&quot;를 입력해주세요 (따옴표 제외)
               </p>
-            </div>
+            </motion.div>
 
             {/* 버튼 */}
-            <div className="space-y-3 pt-4">
+            <motion.div {...fadeRise(0.1)} className="space-y-3 pt-4">
               <button
                 type="button"
                 onClick={handleDeactivate}
@@ -210,7 +218,7 @@ export default function DeleteAccountPage() {
               >
                 이전으로
               </button>
-            </div>
+            </motion.div>
           </div>
         )}
       </div>

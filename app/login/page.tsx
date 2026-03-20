@@ -1,13 +1,38 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { motion } from "framer-motion";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { useAlert } from "../components/AlertProvider";
+
+const fadeRise = (delay = 0) => ({
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.45, ease: "easeOut" as const, delay },
+});
 
 function LoginContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const showAlert = useAlert();
   const [oauthError, setOauthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // 이미 로그인한 사용자는 홈으로 리다이렉트
+    const checkAuth = async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        router.replace("/");
+        return;
+      }
+    };
+    checkAuth();
+  }, [router]);
 
   useEffect(() => {
     // Supabase OAuth 실패 시 redirectTo URL에 hash로 전달됨: #error=...&error_description=...
@@ -51,7 +76,7 @@ function LoginContent() {
       });
       if (error) {
         console.error("Kakao signIn error:", error);
-        alert("로그인에 실패했습니다.");
+        showAlert("로그인에 실패했습니다.");
         return;
       }
       if (data?.url) {
@@ -59,13 +84,13 @@ function LoginContent() {
       }
     } catch (e) {
       console.error("Kakao login error:", e);
-      alert("Supabase 설정을 확인해 주세요. (.env.local)");
+      showAlert("Supabase 설정을 확인해 주세요. (.env.local)");
     }
   };
 
   return (
     <div className="min-h-screen bg-fafafa flex flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg p-8 mb-4">
+      <motion.div {...fadeRise(0)} className="w-full max-w-[360px] bg-white border border-gray-200 rounded-lg p-8 mb-4">
         <h1 className="text-2xl font-bold italic font-serif tracking-tight text-center text-gray-900">
           OQ1
         </h1>
@@ -99,13 +124,13 @@ function LoginContent() {
           카카오 계정 하나로 로그인·가입됩니다. 처음 이용 시 다음 단계에서 회원
           정보를 입력해 주세요.
         </p>
-      </div>
+      </motion.div>
 
-      <p className="mt-6 text-xs text-gray-400">
+      <motion.p {...fadeRise(0.1)} className="mt-6 text-xs text-gray-400">
         <Link href="/" className="hover:text-gray-600">
           ← 홈으로
         </Link>
-      </p>
+      </motion.p>
     </div>
   );
 }
