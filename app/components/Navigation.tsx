@@ -125,7 +125,7 @@ export const Sidebar = () => {
             {format(parseISO(EVENT_CHALLENGE.startDate), "yyyy.MM.dd(E)", { locale: ko })} ~ {format(parseISO(EVENT_CHALLENGE.endDate), "MM.dd(E)", { locale: ko })}
           </p>
           <div className="mt-2 flex justify-between items-end">
-            <span className="text-lg font-bold text-gray-900">
+            <span className="text-lg font-bold text-gray-900" suppressHydrationWarning>
               {(() => {
                 const now = getNow();
                 const start = parseISO(EVENT_CHALLENGE.startDate);

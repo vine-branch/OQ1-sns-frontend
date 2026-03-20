@@ -72,6 +72,7 @@ export function MobileHeader({
             <button
               onClick={() => setShowEvent(true)}
               className="text-xs font-bold bg-gray-100 px-2 py-1 rounded-md text-gray-600"
+              suppressHydrationWarning
             >
               {dDayLabel}
             </button>
