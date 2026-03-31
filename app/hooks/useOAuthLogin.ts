@@ -2,21 +2,25 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useAlert } from "@/app/components/AlertProvider";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 
 type OAuthProvider = "kakao" | "apple";
 
-export function useOAuthLogin(onBeforeLogin?: () => void) {
+export function useOAuthLogin() {
   const showAlert = useAlert();
-  const onBeforeLoginRef = useRef(onBeforeLogin);
-  useEffect(() => {
-    onBeforeLoginRef.current = onBeforeLogin;
-  });
 
   const login = useCallback(
-    async (provider: OAuthProvider) => {
+    async (
+      provider: OAuthProvider,
+      params?: Record<string, string>,
+    ) => {
       try {
-        onBeforeLoginRef.current?.();
+        if (params) {
+          for (const [key, value] of Object.entries(params)) {
+            localStorage.setItem(`oauth:${key}`, value);
+          }
+        }
+
         const supabase = createClient();
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider,

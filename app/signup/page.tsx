@@ -126,12 +126,15 @@ function SignupContent() {
     checkAuth();
   }, [router]);
 
-  const { login: oauthLogin } = useOAuthLogin(() => {
+  const { login: oauthLogin } = useOAuthLogin();
+
+  const handleSignupLogin = () => {
     const enneagramType = searchParams.get("enneagram-type");
-    if (enneagramType) {
-      sessionStorage.setItem("signup:enneagram-type", enneagramType);
-    }
-  });
+    oauthLogin(
+      "kakao",
+      enneagramType ? { "enneagram-type": enneagramType } : undefined,
+    );
+  };
 
   // 세션 확인 중
   if (isAuthenticated === null) {
@@ -170,7 +173,7 @@ function SignupContent() {
           <p className="text-center text-xs text-gray-500 mt-2 mb-8">
             회원가입을 위해 먼저 카카오 로그인이 필요합니다.
           </p>
-          <OAuthLoginButton provider="kakao" onClick={() => oauthLogin("kakao")} variant="signup" />
+          <OAuthLoginButton provider="kakao" onClick={handleSignupLogin} variant="signup" />
           <p className="text-center text-xs text-gray-500 mt-4">
             카카오 계정 하나로 로그인·가입됩니다.
           </p>
@@ -182,7 +185,7 @@ function SignupContent() {
   // 인증됨: 회원가입 폼
   const enneagramType =
     searchParams.get("enneagram-type") ||
-    sessionStorage.getItem("signup:enneagram-type") ||
+    localStorage.getItem("oauth:enneagram-type") ||
     undefined;
   const hasPresetType = !!enneagramType;
 

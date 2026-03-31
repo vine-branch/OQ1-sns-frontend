@@ -33,7 +33,7 @@ export function useSignupSubmit(fromKakao: boolean) {
         showAlert("회원 정보 저장에 실패했습니다.");
         return;
       }
-      sessionStorage.removeItem("signup:enneagram-type");
+      localStorage.removeItem("oauth:enneagram-type");
       router.push("/");
       router.refresh();
     } else {
