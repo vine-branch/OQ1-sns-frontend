@@ -4,6 +4,7 @@ import UserAvatar from "@/app/components/UserAvatar";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { fadeRise } from "@/lib/animations";
 import { getNow, isFeatureEnabled, sanitizeText } from "@/lib/utils";
 import { format } from "date-fns";
@@ -52,6 +53,7 @@ function UploadForm({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const editPostId = searchParams.get("id");
   const showAlert = useAlert();
 
@@ -81,14 +83,15 @@ function UploadForm({
   const quoteContentRef = useRef<HTMLParagraphElement>(null);
 
   useEffect(() => {
-    // Check Action Success
     if (state.success) {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
       const timer = setTimeout(() => setShowReward(true), 0);
       return () => clearTimeout(timer);
     } else if (state.message) {
       showAlert(state.message);
     }
-  }, [state, showAlert]);
+  }, [state, showAlert, queryClient]);
 
   useEffect(() => {
     if (!showReward) return;
