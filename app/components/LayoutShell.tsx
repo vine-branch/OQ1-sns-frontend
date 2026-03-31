@@ -6,13 +6,13 @@ import { ConfirmProvider } from './ConfirmProvider';
 import { BottomNav, Sidebar } from './Navigation';
 import { QueryProvider } from './QueryProvider';
 
-const AUTH_PATHS = ['/login', '/signup'];
+const MINIMAL_LAYOUT_PATHS = ['/login', '/signup', '/privacy', '/terms'];
 
 export default function LayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAuth = AUTH_PATHS.some((p) => pathname?.startsWith(p));
+  const isMinimal = MINIMAL_LAYOUT_PATHS.some((p) => pathname?.startsWith(p));
 
-  if (isAuth) {
+  if (isMinimal) {
     return (
       <QueryProvider>
         <AlertProvider>

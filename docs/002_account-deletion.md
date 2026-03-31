@@ -1,6 +1,9 @@
-# 회원탈퇴 기능 (Instagram-style Account Deletion)
+---
+title: 회원탈퇴 기능
+status: current
+---
 
-## 개요
+# 회원탈퇴 기능 (Soft Delete)
 
 인스타그램과 동일한 로직으로 구현된 회원탈퇴 기능입니다. 즉시 삭제가 아닌 **소프트 삭제(Soft Delete)** 방식으로, 30일의 유예기간을 제공합니다.
 
@@ -155,32 +158,6 @@ supabase db push
 
 30일이 경과한 탈퇴 계정을 자동으로 삭제하려면 정기 작업이 필요합니다.
 
-### Supabase Edge Functions 사용 (권장)
-```typescript
-// supabase/functions/cleanup-deleted-accounts/index.ts
-import { createClient } from '@supabase/supabase-js'
-
-Deno.serve(async (req) => {
-  const supabaseClient = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  )
-
-  const { error } = await supabaseClient.rpc('cleanup_deleted_accounts')
-
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
-  return new Response(JSON.stringify({ success: true }), {
-    headers: { 'Content-Type': 'application/json' },
-  })
-})
-```
-
 ### Supabase Cron 설정
 ```sql
 -- pg_cron extension 활성화
@@ -222,13 +199,6 @@ SELECT cron.schedule(
 1. 탈퇴 페이지 진입
 2. "취소" 또는 "이전으로" 버튼 클릭
 3. 프로필 편집 페이지로 돌아가는지 확인
-
-## 향후 개선사항
-
-1. **이메일 알림**: 탈퇴 7일 전, 1일 전 이메일 알림
-2. **탈퇴 사유 수집**: 탈퇴 시 사유 선택 (선택사항)
-3. **데이터 다운로드**: 탈퇴 전 본인 데이터 다운로드 기능
-4. **관리자 대시보드**: 탈퇴 통계 및 관리 기능
 
 ## 참고 자료
 

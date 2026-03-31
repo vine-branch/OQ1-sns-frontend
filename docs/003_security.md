@@ -1,3 +1,8 @@
+---
+title: 보안 정책
+status: current
+---
+
 # OQ1 Security Documentation
 
 이 문서는 OQ1 서비스에 적용된 주요 보안 설정 및 데이터 무결성 정책을 기록합니다.

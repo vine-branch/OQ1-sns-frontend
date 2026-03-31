@@ -28,6 +28,9 @@ export const signupSchema = z.object({
       (v: string) => /^[1-9]w[1-9]$/.test(v),
       { message: "에니어그램 유형을 선택해 주세요." },
     ),
+  agree_terms: z.literal(true, {
+    errorMap: () => ({ message: "이용약관 및 개인정보 처리방침에 동의해 주세요." }),
+  }),
 });
 
 export type SignupFormData = z.infer<typeof signupSchema>;

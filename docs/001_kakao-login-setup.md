@@ -1,3 +1,8 @@
+---
+title: 카카오 로그인 설정 가이드
+status: current
+---
+
 # 카카오 로그인 설정 가이드
 
 Supabase Auth + Kakao OAuth로 로그인하려면 아래 순서대로 설정하면 됩니다.
@@ -93,10 +98,10 @@ Supabase Auth가 카카오 토큰을 받을 때 이 값을 사용하므로 **반
 
 | 항목 | 등록 여부 | 설명 |
 |------|-----------|------|
-| **카카오 로그인 리다이렉트 URI** | ✅ **필수** | 카카오 로그인을 사용할 때 필요한 OAuth 리다이렉트 URI를 등록합니다. Supabase **Callback URL (for OAuth)** 값을 그대로 등록 (예: `https://<프로젝트-ref>.supabase.co/auth/v1/callback`) |
-| **비즈니스 인증 리다이렉트 URI** | ❌ 불필요 | 비즈니스 인증을 사용할 때 필요한 OAuth 리다이렉트 URI. **카카오 로그인만** 쓰면 등록하지 않아도 됨 |
-| **호출 허용 IP 주소** | ❌ 기본 불필요 | API 호출을 특정 IP로 제한할 때만 사용. 카카오 로그인만 쓰는 일반적인 경우엔 등록하지 않아도 됨 |
-| **OpenID Connect 활성화** | ❌ 불필요 | Supabase **OAuth 인가 코드 방식**(`signInWithOAuth`)에는 **필요 없음**. 카카오 JS SDK로 ID 토큰 받아 `signInWithIdToken` 할 때만 켜면 됨. 안 켜도 됨 |
+| **카카오 로그인 리다이렉트 URI** | **필수** | 카카오 로그인을 사용할 때 필요한 OAuth 리다이렉트 URI를 등록합니다. Supabase **Callback URL (for OAuth)** 값을 그대로 등록 (예: `https://<프로젝트-ref>.supabase.co/auth/v1/callback`) |
+| **비즈니스 인증 리다이렉트 URI** | 불필요 | 비즈니스 인증을 사용할 때 필요한 OAuth 리다이렉트 URI. **카카오 로그인만** 쓰면 등록하지 않아도 됨 |
+| **호출 허용 IP 주소** | 기본 불필요 | API 호출을 특정 IP로 제한할 때만 사용. 카카오 로그인만 쓰는 일반적인 경우엔 등록하지 않아도 됨 |
+| **OpenID Connect 활성화** | 불필요 | Supabase **OAuth 인가 코드 방식**(`signInWithOAuth`)에는 **필요 없음**. 카카오 JS SDK로 ID 토큰 받아 `signInWithIdToken` 할 때만 켜면 됨. 안 켜도 됨 |
 
 정리하면, **카카오 로그인 리다이렉트 URI만** Supabase 콜백 URL로 등록하면 됩니다. OpenID Connect는 켜지 않아도 됩니다.
 

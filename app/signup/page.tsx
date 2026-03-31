@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
 import abrahamImg from "@/assets/images/abraham.png";
@@ -369,6 +370,7 @@ function SignupForm({
       guk_no: undefined,
       birth_date: "",
       enneagram_type: defaultEnneagramType,
+      agree_terms: undefined,
     },
   });
 
@@ -534,6 +536,34 @@ function SignupForm({
               </p>
             )}
           </>
+        )}
+      </div>
+
+      <div>
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            className={cn(
+              "mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-gray-900 cursor-pointer",
+              errors.agree_terms && "border-red-300",
+            )}
+            {...register("agree_terms")}
+          />
+          <span className="text-xs text-gray-600 leading-relaxed">
+            <Link href="/terms" target="_blank" className="underline hover:text-gray-900">
+              이용약관
+            </Link>
+            {" 및 "}
+            <Link href="/privacy" target="_blank" className="underline hover:text-gray-900">
+              개인정보 처리방침
+            </Link>
+            에 동의합니다.
+          </span>
+        </label>
+        {errors.agree_terms && (
+          <p className="mt-1 text-xs text-red-600">
+            {errors.agree_terms.message}
+          </p>
         )}
       </div>
 
