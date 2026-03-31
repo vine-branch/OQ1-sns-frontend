@@ -1,12 +1,22 @@
 "use client";
 
 import { useAlert } from "@/app/components/AlertProvider";
+import UserAvatar from "@/app/components/UserAvatar";
 import {
   useKakaoProfile,
   useSignupFormDefaults,
   useSignupSubmit,
 } from "@/app/signup/hooks";
 import { signupSchema, type SignupFormData } from "@/app/signup/schema";
+import abrahamImg from "@/assets/images/abraham.png";
+import davidImg from "@/assets/images/david.png";
+import isaacImg from "@/assets/images/isaac.png";
+import johnImg from "@/assets/images/john.png";
+import josephImg from "@/assets/images/joseph.png";
+import mosesImg from "@/assets/images/moses.png";
+import ruthImg from "@/assets/images/ruth.png";
+import samuelImg from "@/assets/images/samuel.png";
+import solomonImg from "@/assets/images/solomon.png";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,68 +27,61 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { ENNEAGRAM_OPTIONS, INPUT_ERROR_CLASS } from "@/lib/constants";
+import { fadeRise } from "@/lib/animations";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
-import abrahamImg from "@/assets/images/abraham.png";
-import davidImg from "@/assets/images/david.png";
-import isaacImg from "@/assets/images/isaac.png";
-import johnImg from "@/assets/images/john.png";
-import josephImg from "@/assets/images/joseph.png";
-import mosesImg from "@/assets/images/moses.png";
-import ruthImg from "@/assets/images/ruth.png";
-import samuelImg from "@/assets/images/samuel.png";
-import solomonImg from "@/assets/images/solomon.png";
 import Image, { type StaticImageData } from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 
-const ENNEAGRAM_INFO: Record<string, { name: string; description: string; image: StaticImageData }> = {
-  "1": { name: "모세", description: "완벽을 추구하는 이상주의자", image: mosesImg },
+const ENNEAGRAM_INFO: Record<
+  string,
+  { name: string; description: string; image: StaticImageData }
+> = {
+  "1": {
+    name: "모세",
+    description: "완벽을 추구하는 이상주의자",
+    image: mosesImg,
+  },
   "2": { name: "룻", description: "사랑으로 섬기는 돕는 사람", image: ruthImg },
-  "3": { name: "사무엘", description: "목표를 향해 달려가는 성취자", image: samuelImg },
-  "4": { name: "세례 요한", description: "진정성을 추구하는 개인주의자", image: johnImg },
-  "5": { name: "요셉", description: "지혜롭게 관찰하는 탐구자", image: josephImg },
+  "3": {
+    name: "사무엘",
+    description: "목표를 향해 달려가는 성취자",
+    image: samuelImg,
+  },
+  "4": {
+    name: "세례 요한",
+    description: "진정성을 추구하는 개인주의자",
+    image: johnImg,
+  },
+  "5": {
+    name: "요셉",
+    description: "지혜롭게 관찰하는 탐구자",
+    image: josephImg,
+  },
   "6": { name: "이삭", description: "신실하게 따르는 충성가", image: isaacImg },
-  "7": { name: "솔로몬", description: "기쁨을 나누는 열정가", image: solomonImg },
-  "8": { name: "다윗", description: "담대하게 도전하는 지도자", image: davidImg },
-  "9": { name: "아브라함", description: "평화를 이루는 중재자", image: abrahamImg },
+  "7": {
+    name: "솔로몬",
+    description: "기쁨을 나누는 열정가",
+    image: solomonImg,
+  },
+  "8": {
+    name: "다윗",
+    description: "담대하게 도전하는 지도자",
+    image: davidImg,
+  },
+  "9": {
+    name: "아브라함",
+    description: "평화를 이루는 중재자",
+    image: abrahamImg,
+  },
 };
 
-const fadeRise = (delay = 0) => ({
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.45, ease: "easeOut" as const, delay },
-});
-
 const SIGNUP_FORM_ID = "signup-form";
-
-const ENNEAGRAM_OPTIONS = [
-  { value: "", label: "에니어그램 유형 선택" },
-  { value: "1w9", label: "1w9 - 모세 (이상주의자)" }, // 완벽주의자 + 중재자 날개
-  { value: "1w2", label: "1w2 - 모세 (옹호자)" }, // 완벽주의자 + 돕는 사람 날개
-  { value: "2w1", label: "2w1 - 룻 (봉사자)" }, // 돕는 사람 + 완벽주의자 날개
-  { value: "2w3", label: "2w3 - 룻 (접대자)" }, // 돕는 사람 + 성취자 날개
-  { value: "3w2", label: "3w2 - 사무엘 (매력가)" }, // 성취자 + 돕는 사람 날개
-  { value: "3w4", label: "3w4 - 사무엘 (전문가)" }, // 성취자 + 개인주의자 날개
-  { value: "4w3", label: "4w3 - 세례 요한 (귀족)" }, // 개인주의자 + 성취자 날개
-  { value: "4w5", label: "4w5 - 세례 요한 (보헤미안)" }, // 개인주의자 + 탐구자 날개
-  { value: "5w4", label: "5w4 - 요셉 (상징주의자)" }, // 탐구자 + 개인주의자 날개
-  { value: "5w6", label: "5w6 - 요셉 (문제해결자)" }, // 탐구자 + 충성가 날개
-  { value: "6w5", label: "6w5 - 이삭 (수호자)" }, // 충성가 + 탐구자 날개
-  { value: "6w7", label: "6w7 - 이삭 (동반자)" }, // 충성가 + 열정가 날개
-  { value: "7w6", label: "7w6 - 솔로몬 (연예인)" }, // 열정가 + 충성가 날개
-  { value: "7w8", label: "7w8 - 솔로몬 (현실주의자)" }, // 열정가 + 도전자 날개
-  { value: "8w7", label: "8w7 - 다윗 (독립가)" }, // 도전자 + 열정가 날개
-  { value: "8w9", label: "8w9 - 다윗 (곰)" }, // 도전자 + 중재자 날개
-  { value: "9w8", label: "9w8 - 아브라함 (심판관)" }, // 중재자 + 도전자 날개
-  { value: "9w1", label: "9w1 - 아브라함 (꿈꾸는 자)" }, // 중재자 + 완벽주의자 날개
-];
-
-const inputErrorClass =
-  "border-red-300 focus:ring-red-400 focus:border-red-400";
 
 function SignupContent() {
   const searchParams = useSearchParams();
@@ -205,7 +208,6 @@ function SignupContent() {
             카카오 계정 하나로 로그인·가입됩니다.
           </p>
         </motion.div>
-
       </div>
     );
   }
@@ -252,7 +254,6 @@ function SignupContent() {
           defaultEnneagramType={enneagramType}
         />
       </motion.div>
-
     </div>
   );
 }
@@ -284,15 +285,9 @@ function EnneagramHero({ typeValue }: { typeValue?: string }) {
           placeholder="blur"
         />
       </div>
-      <h2 className="text-xl font-bold text-gray-900">
-        {info.name}
-      </h2>
-      <p className="text-xs text-gray-400 mt-0.5 tabular-nums">
-        {typeValue}
-      </p>
-      <p className="text-sm text-gray-600 mt-2">
-        {info.description}
-      </p>
+      <h2 className="text-xl font-bold text-gray-900">{info.name}</h2>
+      <p className="text-xs text-gray-400 mt-0.5 tabular-nums">{typeValue}</p>
+      <p className="text-sm text-gray-600 mt-2">{info.description}</p>
     </motion.div>
   );
 }
@@ -323,12 +318,8 @@ function EnneagramPreview({ typeValue }: { typeValue?: string }) {
             />
           </div>
           <div>
-            <p className="text-sm font-bold text-gray-900">
-              {info.name} 타입
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {info.description}
-            </p>
+            <p className="text-sm font-bold text-gray-900">{info.name} 타입</p>
+            <p className="text-xs text-gray-500 mt-0.5">{info.description}</p>
           </div>
         </motion.div>
       )}
@@ -337,7 +328,11 @@ function EnneagramPreview({ typeValue }: { typeValue?: string }) {
 }
 
 // useWatch로 watch() 대체 — React Compiler 호환
-function EnneagramPreviewConnected({ control }: { control: import("react-hook-form").Control<SignupFormData> }) {
+function EnneagramPreviewConnected({
+  control,
+}: {
+  control: import("react-hook-form").Control<SignupFormData>;
+}) {
   const enneagramType = useWatch({ control, name: "enneagram_type" });
   return <EnneagramPreview typeValue={enneagramType} />;
 }
@@ -401,9 +396,7 @@ function SignupForm({
       onSubmit={handleSubmit(onSubmit, onInvalid)}
       className="space-y-4"
     >
-      {!defaultEnneagramType && (
-        <EnneagramPreviewConnected control={control} />
-      )}
+      {!defaultEnneagramType && <EnneagramPreviewConnected control={control} />}
       <div>
         <label
           htmlFor="user_name"
@@ -413,22 +406,14 @@ function SignupForm({
         </label>
         <div className="flex items-center gap-2">
           {kakaoAvatarUrl && (
-            <div className="relative w-9 h-9 rounded-full overflow-hidden border border-gray-200 shrink-0">
-              <Image
-                src={kakaoAvatarUrl}
-                alt="프로필"
-                fill
-                className="object-cover"
-                unoptimized
-              />
-            </div>
+            <UserAvatar src={kakaoAvatarUrl} alt="나" size="sm" />
           )}
           <Input
             id="user_name"
             type="text"
             placeholder="이름을 입력하세요 (한글 10자 이내)"
             maxLength={10}
-            className={cn(errors.user_name && inputErrorClass)}
+            className={cn(errors.user_name && INPUT_ERROR_CLASS)}
             {...register("user_name")}
           />
         </div>
@@ -452,7 +437,7 @@ function SignupForm({
             placeholder="숫자로 입력"
             min={1}
             max={5}
-            className={cn("pr-9", errors.guk_no && inputErrorClass)}
+            className={cn("pr-9", errors.guk_no && INPUT_ERROR_CLASS)}
             {...register("guk_no")}
           />
           <span
@@ -510,12 +495,12 @@ function SignupForm({
                 >
                   <SelectTrigger
                     id="enneagram_type"
-                    className={cn(errors.enneagram_type && inputErrorClass)}
+                    className={cn(errors.enneagram_type && INPUT_ERROR_CLASS)}
                   >
                     <SelectValue placeholder="에니어그램 유형 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ENNEAGRAM_OPTIONS.filter((opt) => opt.value !== "").map(
+                    {ENNEAGRAM_OPTIONS.map(
                       (opt) => (
                         <SelectItem
                           key={opt.value}
@@ -550,11 +535,19 @@ function SignupForm({
             {...register("agree_terms")}
           />
           <span className="text-xs text-gray-600 leading-relaxed">
-            <Link href="/terms" target="_blank" className="underline hover:text-gray-900">
+            <Link
+              href="/terms"
+              target="_blank"
+              className="underline hover:text-gray-900"
+            >
               이용약관
             </Link>
             {" 및 "}
-            <Link href="/privacy" target="_blank" className="underline hover:text-gray-900">
+            <Link
+              href="/privacy"
+              target="_blank"
+              className="underline hover:text-gray-900"
+            >
               개인정보 처리방침
             </Link>
             에 동의합니다.
