@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
 import { ChevronLeft } from "lucide-react";
-import Image from "next/image";
+import UserAvatar from "@/app/components/UserAvatar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -191,25 +191,15 @@ export default function MyPageEdit() {
           className="bg-white p-5 rounded-lg border border-gray-200"
         >
           <div className="flex items-center gap-5">
-            <div className="relative w-20 h-20 rounded-full overflow-hidden bg-gray-100 shrink-0">
-              {profile.avatar_url ? (
-                <Image
-                  src={profile.avatar_url}
-                  alt="프로필"
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-2xl text-gray-400">
-                  👤
-                </div>
-              )}
-            </div>
+            <UserAvatar
+              src={profile.avatar_url ?? undefined}
+              alt={profile.user_name}
+              size="xl"
+            />
             <div className="flex-1">
               <p className="font-semibold text-gray-900">{profile.user_name}</p>
               <p className="text-xs text-gray-500 mt-0.5">
-                카카오 프로필 사진이 표시됩니다.
+                소셜 계정 프로필 사진이 표시됩니다.
               </p>
             </div>
           </div>
