@@ -15,6 +15,7 @@ import {
 import { ENNEAGRAM_OPTIONS, INPUT_ERROR_CLASS } from "@/lib/constants";
 import { fadeRise } from "@/lib/animations";
 import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
@@ -33,6 +34,7 @@ interface EditContentProps {
 
 export default function EditContent({ userId }: EditContentProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const showAlert = useAlert();
   const { profile, loading, error } = useProfile();
 
@@ -79,6 +81,8 @@ export default function EditContent({ userId }: EditContentProps) {
       showAlert("저장에 실패했습니다. 다시 시도해 주세요.");
       return;
     }
+    queryClient.invalidateQueries({ queryKey: ["userProfile"] });
+    queryClient.invalidateQueries({ queryKey: ["posts"] });
     router.push("/mypage");
     router.refresh();
   };

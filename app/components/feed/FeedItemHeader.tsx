@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Lock, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,6 +25,7 @@ export default function FeedItemHeader({
 }: FeedItemHeaderProps) {
   const [showMenu, setShowMenu] = useState(false);
   const router = useRouter();
+  const queryClient = useQueryClient();
   const showAlert = useAlert();
   const confirm = useConfirm();
 
@@ -45,6 +47,8 @@ export default function FeedItemHeader({
       return;
     }
 
+    queryClient.invalidateQueries({ queryKey: ["posts"] });
+    queryClient.invalidateQueries({ queryKey: ["userPosts"] });
     onDeleted();
   };
 
