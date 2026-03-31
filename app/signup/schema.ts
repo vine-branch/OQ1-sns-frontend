@@ -34,3 +34,6 @@ export const signupSchema = z.object({
 });
 
 export type SignupFormData = z.infer<typeof signupSchema>;
+
+export const profileSchema = signupSchema.omit({ agree_terms: true });
+export type ProfileFormData = z.infer<typeof profileSchema>;

@@ -28,7 +28,7 @@ export function useProfile() {
     }
     const { data: row, error: rowError } = await supabase
       .from("oq_users")
-      .select("user_name, guk_no, birth_date, enneagram_type")
+      .select("user_name, guk_no, birth_date, enneagram_type, avatar_url")
       .eq("id", user.id)
       .single();
 
@@ -40,8 +40,8 @@ export function useProfile() {
     }
 
     const avatarUrl =
+      (row.avatar_url as string) ??
       (user.user_metadata?.avatar_url as string) ??
-      (user.user_metadata?.picture as string) ??
       null;
 
     const raw = row.birth_date;

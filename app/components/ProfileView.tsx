@@ -45,18 +45,20 @@ const feedItemTransition = (index: number) => ({
 interface ProfileViewProps {
   userId: string;
   isOwnProfile?: boolean;
+  initialProfile?: Parameters<typeof useUserProfile>[1];
   children?: React.ReactNode;
 }
 
 export default function ProfileView({
   userId,
   isOwnProfile = false,
+  initialProfile,
   children,
 }: ProfileViewProps) {
   const [showBadgeModal, setShowBadgeModal] = useState(false);
 
-  // React Query: 프로필 + 게시글 병렬 fetch
-  const { data: profile, isLoading: profileLoading } = useUserProfile(userId);
+  // React Query: 프로필 + 게시글 병렬 fetch (initialProfile이 있으면 즉시 렌더)
+  const { data: profile, isLoading: profileLoading } = useUserProfile(userId, initialProfile);
   const { data: rawPosts, isLoading: postsLoading } = useUserPosts(userId, isOwnProfile);
   const loading = profileLoading || postsLoading;
 

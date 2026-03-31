@@ -17,11 +17,15 @@ export function usePosts(currentUserId: string | null) {
   });
 }
 
-export function useUserProfile(userId: string) {
+export function useUserProfile(
+  userId: string,
+  initialData?: Awaited<ReturnType<typeof fetchUserProfile>>,
+) {
   return useQuery({
     queryKey: ["userProfile", userId],
     queryFn: () => fetchUserProfile(userId),
     enabled: !!userId,
+    initialData,
   });
 }
 

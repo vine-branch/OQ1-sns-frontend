@@ -187,9 +187,7 @@ function mapToPost(
     user: {
       id: userId,
       name: user?.user_name || "",
-      avatar:
-        user?.avatar_url ||
-        (userId ? `https://picsum.photos/seed/${userId}/100/100` : ""),
+      avatar: user?.avatar_url || "",
       type: "Anytime",
       streak: 0,
       group: user ? `${user.guk_no}국` : "",
@@ -294,9 +292,7 @@ export async function fetchUserProfile(userId: string) {
 
   return {
     ...data,
-    avatar_url:
-      data.avatar_url ||
-      "https://k.kakaocdn.net/dn/dpk9l1/btqmGhA2lKL/Oz0wDuJn1YV2DIn92f6DVK/img_640x640.jpg",
+    avatar_url: data.avatar_url || "",
   };
 }
 
