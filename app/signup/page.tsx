@@ -1,6 +1,7 @@
 "use client";
 
 import { useAlert } from "@/app/components/AlertProvider";
+import OAuthLoginButton from "@/app/components/OAuthLoginButton";
 import UserAvatar from "@/app/components/UserAvatar";
 import {
   useKakaoProfile,
@@ -27,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createClient } from "@/lib/supabase/client";
+import { useOAuthLogin } from "@/app/hooks/useOAuthLogin";
 import { ENNEAGRAM_OPTIONS, INPUT_ERROR_CLASS } from "@/lib/constants";
 import { fadeRise } from "@/lib/animations";
 import { cn } from "@/lib/utils";
@@ -86,7 +88,6 @@ const SIGNUP_FORM_ID = "signup-form";
 function SignupContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const showAlert = useAlert();
   const fromKakao = searchParams.get("from") === "kakao";
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const {
@@ -125,33 +126,12 @@ function SignupContent() {
     checkAuth();
   }, [router]);
 
-  const handleKakaoLogin = async () => {
-    try {
-      // OAuth 후 유실되는 쿼리 파라미터를 세션스토리지에 저장
-      const enneagramType = searchParams.get("enneagram-type");
-      if (enneagramType) {
-        sessionStorage.setItem("signup:enneagram-type", enneagramType);
-      }
-      const supabase = createClient();
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "kakao",
-        options: {
-          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
-        },
-      });
-      if (error) {
-        console.error("Kakao signIn error:", error);
-        showAlert("로그인에 실패했습니다.");
-        return;
-      }
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (e) {
-      console.error("Kakao login error:", e);
-      showAlert("로그인 중 오류가 발생했습니다.");
+  const { login: oauthLogin } = useOAuthLogin(() => {
+    const enneagramType = searchParams.get("enneagram-type");
+    if (enneagramType) {
+      sessionStorage.setItem("signup:enneagram-type", enneagramType);
     }
-  };
+  });
 
   // 세션 확인 중
   if (isAuthenticated === null) {
@@ -190,20 +170,7 @@ function SignupContent() {
           <p className="text-center text-xs text-gray-500 mt-2 mb-8">
             회원가입을 위해 먼저 카카오 로그인이 필요합니다.
           </p>
-          <button
-            type="button"
-            onClick={handleKakaoLogin}
-            className="w-full py-3 flex items-center justify-center gap-2 bg-[#FEE500] hover:bg-[#FADA0A] active:bg-[#E6D000] text-[#191919] text-sm font-semibold rounded-md transition-colors"
-          >
-            <svg
-              className="w-5 h-5 shrink-0"
-              viewBox="0 0 24 24"
-              fill="currentColor"
-            >
-              <path d="M12 3c5.799 0 10.5 3.664 10.5 8.185 0 4.52-4.701 8.184-10.5 8.184a13.5 13.5 0 0 1-1.727-.11l-4.408 2.883c-.501.265-.678.236-.472-.413l.892-3.678c-2.88-1.46-4.785-3.99-4.785-6.966C1.5 6.665 6.201 3 12 3Z" />
-            </svg>
-            카카오로 시작하기
-          </button>
+          <OAuthLoginButton provider="kakao" onClick={() => oauthLogin("kakao")} variant="signup" />
           <p className="text-center text-xs text-gray-500 mt-4">
             카카오 계정 하나로 로그인·가입됩니다.
           </p>
