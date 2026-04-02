@@ -7,6 +7,8 @@ const PUBLIC_PATHS = [
   "/privacy",
   "/terms",
   "/auth/callback",
+  "/demo",
+  "/mypage/demo",
 ];
 
 export async function proxy(request: NextRequest) {
