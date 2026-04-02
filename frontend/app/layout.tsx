@@ -35,14 +35,10 @@ export const metadata: Metadata = {
     type: "website",
     siteName: "OQ1",
     locale: "ko_KR",
-    title: "OQ1: 오늘 큐티 완료",
-    description: "매일 QT를 나누고 사람을 연결하는 플랫폼",
     url: SITE_URL,
   },
   twitter: {
     card: "summary_large_image",
-    title: "OQ1: 오늘 큐티 완료",
-    description: "매일 QT를 나누고 사람을 연결하는 플랫폼",
   },
 };
 
