@@ -36,8 +36,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useSyncExternalStore } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
+
+const emptySubscribe = () => () => {};
 
 const ENNEAGRAM_INFO: Record<
   string,
@@ -99,13 +101,12 @@ function SignupContent({ isAuthenticated }: { isAuthenticated: boolean }) {
   );
 
   const paramType = searchParams.get("enneagram-type");
-  const [storedType, setStoredType] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!paramType) {
-      setStoredType(localStorage.getItem("oauth:enneagram-type"));
-    }
-  }, [paramType]);
+  const storedType = useSyncExternalStore(
+    emptySubscribe,
+    () =>
+      paramType ? null : localStorage.getItem("oauth:enneagram-type") ?? null,
+    () => null,
+  );
 
   const enneagramType = paramType || storedType || undefined;
   const hasPresetType = !!enneagramType;
