@@ -1,4 +1,10 @@
+import type { Metadata } from "next";
 import StaticPageLayout from "../components/StaticPageLayout";
+
+export const metadata: Metadata = {
+  title: "이용약관",
+  description: "OQ1 서비스 이용약관입니다.",
+};
 
 export default function TermsPage() {
   return (

@@ -15,8 +15,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
-  title: "OQ1: 오늘 큐티 완료",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "OQ1: 오늘 큐티 완료",
+    template: "%s | OQ1",
+  },
   description: "매일 QT를 나누고 사람을 연결하는 플랫폼",
   applicationName: "OQ1",
   appleWebApp: {
@@ -25,6 +31,19 @@ export const metadata: Metadata = {
     title: "OQ1",
   },
   formatDetection: { telephone: false },
+  openGraph: {
+    type: "website",
+    siteName: "OQ1",
+    locale: "ko_KR",
+    title: "OQ1: 오늘 큐티 완료",
+    description: "매일 QT를 나누고 사람을 연결하는 플랫폼",
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OQ1: 오늘 큐티 완료",
+    description: "매일 QT를 나누고 사람을 연결하는 플랫폼",
+  },
 };
 
 export const viewport: Viewport = {
