@@ -1,6 +1,7 @@
 import { Agentation } from "agentation";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 import LayoutShell from "./components/LayoutShell";
 import { SerwistProvider } from "./serwist";
 import "./globals.css";
@@ -59,6 +60,7 @@ export default function RootLayout({
         <SerwistProvider swUrl="/serwist/sw.js">
           <LayoutShell>{children}</LayoutShell>
         </SerwistProvider>
+        <Toaster position="top-center" richColors duration={1500} />
         {process.env.NODE_ENV === "development" && <Agentation />}
       </body>
     </html>

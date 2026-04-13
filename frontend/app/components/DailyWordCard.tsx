@@ -4,13 +4,16 @@ import { formatDate } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   BookOpen,
+  Check,
   ChevronDown,
   ChevronUp,
+  Copy,
   Pencil,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useCopyToClipboard } from "../hooks/useCopyToClipboard";
 import { getDailyInsight } from "../services/aiService";
 import { fetchTodayQt } from "../services/postService";
 import type { DailyWord } from "../types";
@@ -27,6 +30,9 @@ const DailyWordCard = ({ demoData }: Props) => {
   const [insight, setInsight] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [qtLoading, setQtLoading] = useState(true);
+  const { copied, copy } = useCopyToClipboard({
+    successMessage: "말씀이 복사되었습니다",
+  });
   const contentRef = useRef<HTMLParagraphElement>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [dailyQt, setDailyQt] = useState<any>(null);
@@ -101,7 +107,46 @@ const DailyWordCard = ({ demoData }: Props) => {
       </div>
 
       <div className="p-5">
-        <h3 className="text-lg font-bold text-gray-900 mb-3">오늘의 말씀</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-gray-900">오늘의 말씀</h3>
+          {!qtLoading && data && (
+            <motion.button
+              onClick={() => copy(`${data.reference}\n${data.content}`)}
+              aria-label="말씀 복사"
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.92 }}
+              animate={copied ? { scale: [1, 1.3, 1] } : { scale: 1 }}
+              transition={{ duration: 0.35, ease: "easeOut", times: [0, 0.4, 1] }}
+              className="p-1.5 rounded-md text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {copied ? (
+                  <motion.span
+                    key="check"
+                    initial={{ opacity: 0, rotate: -90 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: 90 }}
+                    transition={{ duration: 0.15 }}
+                    className="block"
+                  >
+                    <Check size={16} className="text-green-600" />
+                  </motion.span>
+                ) : (
+                  <motion.span
+                    key="copy"
+                    initial={{ opacity: 0, rotate: -90 }}
+                    animate={{ opacity: 1, rotate: 0 }}
+                    exit={{ opacity: 0, rotate: 90 }}
+                    transition={{ duration: 0.15 }}
+                    className="block"
+                  >
+                    <Copy size={16} />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
+          )}
+        </div>
 
         {qtLoading ? (
           <div className="animate-pulse space-y-2 mb-3">
